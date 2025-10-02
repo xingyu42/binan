@@ -5,7 +5,6 @@ const { createHmac } = require('crypto')
 const { apiSecret } = require('../config/config')
 const JSONbig = require('json-bigint')
 const { SYSTEM_LIMITS, API_CONFIG } = require('../core/constants')
-require('dotenv').config();
 
 // 创建代理实例
 let httpsAgent = null

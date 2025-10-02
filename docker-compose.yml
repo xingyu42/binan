@@ -1,0 +1,20 @@
+version: '3.8'
+
+services:
+  binan-trading:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: binan-trading-bot
+    restart: unless-stopped
+    env_file:
+      - .env
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./logs:/app/logs
+      - ./data:/app/data
+
+networks:
+  default:
+    driver: bridge

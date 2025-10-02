@@ -1,6 +1,5 @@
 // 合约交易
 const { contractAxios } = require('../axiosInstance/axiosInstance')
-require('dotenv').config();
 // 获取服务器时间
 async function getServiceTime() {
   const res = await contractAxios({

@@ -3,8 +3,6 @@
  * 集中管理所有系统级别的配置常量
  */
 
-require('dotenv').config();
-
 // ==================== API 配置 ====================
 const API_CONFIG = {
   // Binance 现货 API 域名
