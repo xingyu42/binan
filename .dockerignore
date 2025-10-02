@@ -10,10 +10,6 @@ npm-debug.log
 logs
 *.log
 
-# 测试相关
-test/
-coverage
-
 # 环境变量文件
 .env
 .env.local
