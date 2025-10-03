@@ -3,6 +3,8 @@
 # 使用最新 LTS 版本的 Node.js 镜像作为基础镜像
 FROM node:20-alpine
 
+RUN apk add --no-cache tzdata && ln -snf /usr/share/zoneinfo/${TZ} /etc/localtime && echo ${TZ} > /etc/timezone
+
 # 设置工作目录
 WORKDIR /app
 
