@@ -1,5 +1,6 @@
 // 现货交易
 const { spotsAxios } = require('../axiosInstance/axiosInstance')
+const { logger, errorLogger } = require('../utils/Logger')
 
 // 发起请求获取K线数据
 async function getKlines (symbol,limit) {
@@ -12,7 +13,7 @@ async function getKlines (symbol,limit) {
       limit:limit || 21
     }
   }).catch(error => {
-		global.errorLogger('请求失败:', error)
+		errorLogger('请求失败:', error)
 	})
 	const klines = res.data;
   return klines
@@ -33,7 +34,7 @@ async function getUserData() {
       timestamp
     }
   }).catch(error => {
-		global.errorLogger('请求失败:', error)
+		errorLogger('请求失败:', error)
 	})
   return res.data
 }

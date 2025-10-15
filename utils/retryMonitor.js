@@ -2,6 +2,7 @@
  * 重试监控工具
  * 监控和统计重试情况，帮助分析网络问题
  */
+const { logger, errorLogger } = require('./Logger');
 
 class RetryMonitor {
   constructor() {
@@ -63,8 +64,8 @@ class RetryMonitor {
   recordRetrySuccess(error, finalRetryCount) {
     this.retryStats.successfulRetries++;
     
-    if (global.logger) {
-      global.logger.info(`重试成功: ${this.getErrorType(error)}, 总计重试${finalRetryCount}次`);
+    if (logger) {
+      logger.info(`重试成功: ${this.getErrorType(error)}, 总计重试${finalRetryCount}次`);
     }
   }
 
@@ -76,8 +77,8 @@ class RetryMonitor {
   recordRetryFailure(error, finalRetryCount) {
     this.retryStats.failedRetries++;
     
-    if (global.logger) {
-      global.logger.error(`重试失败: ${this.getErrorType(error)}, 总计重试${finalRetryCount}次`);
+    if (logger) {
+      logger.error(`重试失败: ${this.getErrorType(error)}, 总计重试${finalRetryCount}次`);
     }
   }
 

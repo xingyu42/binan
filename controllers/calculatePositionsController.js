@@ -2,6 +2,8 @@
 const { getKlines } = require('../services/binanceContractService');
 const { getATRCompute } = require('../utils/mathUtils');
 const fs = require('fs');
+const { getData, getDataString } = require('../utils/dataService');
+const { logger, errorLogger } = require('../utils/Logger');
 const breakthroughCoefficient = 20 // 突破系数
 // const bc = 20 // 突破系数
 // const breakthrough_coefficient20 = 20 // 多少根k线内算第一次突破
@@ -14,17 +16,17 @@ const breakthroughCoefficient = 20 // 突破系数
 // 符合条件后做止盈移动
 // 如果最近10跟k线低点大于开仓均价，则移动
 
-// 读取数据
+// 读取数据(使用SQLite)
 function readFile(callback) {
   return new Promise(function (resolve, reject) {
-    fs.readFile('./data/data.json', function (err, data) {
-      if (err) {
-        reject(err);
-        global.errorLogger(err)
-        process.exit(1)
-      }
-      resolve(data.toString())
-    })
+    try {
+      const data = getDataString('./data/data.json');
+      resolve(data);
+    } catch (err) {
+      reject(err);
+      errorLogger(err);
+      process.exit(1);
+    }
   })
 }
 
@@ -154,40 +156,37 @@ function getHighAndLow(klines, symbol) {
   }
 }
 
-// 获取震荡和趋势平均值
+// 获取震荡和趋势平均值(使用SQLite)
 function getTrendOscillation() {
   try {
-    let data = fs.readFileSync('./data/trendOscillation.json')
-    return data.toString()
+    return getDataString('./data/trendOscillation.json');
   } catch (err) {
-    global.errorLogger(err);
+    errorLogger(err);
   }
 }
 
-// 获取白名单
+// 获取白名单(使用SQLite)
 function getWhiteList() {
   try {
-    let data = fs.readFileSync('./data/whiteList.json')
-    return data.toString()
+    return getDataString('./data/whiteList.json');
   } catch (err) {
-    global.errorLogger(err);
+    errorLogger(err);
   }
 }
 
-// 获取黑名单
+// 获取黑名单(使用SQLite)
 function getBlackList() {
   try {
-    let data = fs.readFileSync('./data/blackList.json')
-    return data.toString()
+    return getDataString('./data/blackList.json');
   } catch (err) {
-    global.errorLogger(err);
+    errorLogger(err);
   }
 }
 
 // 获取所有合约的K线数据并处理
 function getAllKlines() {
   return new Promise(async function (resolve, reject) {
-    global.logger.info('getAllKlines', '开始获取所有K线数据并处理')
+    logger.info('getAllKlines', '开始获取所有K线数据并处理')
     let data = []
     let allExchangeInfo = await getAllExchangeInfo()
     if (!allExchangeInfo) {
@@ -229,7 +228,7 @@ function getAllKlines() {
         data.push(klinesInit(symbol, res.data, quantityPrecision, pricePrecision, getMinOrderInfo(filters), whiteList.includes(symbol)))
       }
       if (count === allCount) {
-        global.logger.info('所有K线数据获取完毕')
+        logger.info('所有K线数据获取完毕')
         resolve(data)
       }
     }
@@ -299,7 +298,7 @@ async function getPreparingOrders(equity, positionIng = [], allExchange, orderNu
   })
   let ingSymbols = positionIng.map(item => item.symbol)
   let data = weightSorting(primitiveData.filter((item) => signal(item, profitableSymbol)),ingSymbols) // 符合条件的下单
-  global.logger.info('有信号的标的', data.map(item => item.symbol))
+  logger.info('有信号的标的', data.map(item => item.symbol))
   data = data.slice(0, orderNumber < 1 ? 1 : orderNumber) //截取
   function getTickSize(symbol) { // 获取精度
     const symbolInfo = allExchange.find(item => item.symbol === symbol);
@@ -336,7 +335,7 @@ async function getPreparingOrders(equity, positionIng = [], allExchange, orderNu
     }
     let direction = data[i].highPrice > data[i].highestPoint ? 1 : -1
     let position = getPosition(data[i].ATR, data[i].currentPrice, equity, direction, data[i].pricePrecision, positionLeverage,ingSymbols.includes(data[i].symbol)?positionIngData:false)
-    global.logger.info('格式化stopPrice', data[i].symbol, position.stopPrice, formatPriceByTickSize(position.stopPrice, getTickSize(data[i].symbol)))
+    logger.info('格式化stopPrice', data[i].symbol, position.stopPrice, formatPriceByTickSize(position.stopPrice, getTickSize(data[i].symbol)))
     preparingOrders.push({
       ...position,
       stopPrice: formatPriceByTickSize(position.stopPrice, getTickSize(data[i].symbol)),
@@ -360,13 +359,12 @@ async function getPreparingOrders(equity, positionIng = [], allExchange, orderNu
   return preparingOrders
 }
 
-// 读取历史ATR使用同步
+// 读取历史ATR使用同步(使用SQLite)
 function getHistoryATR() {
   try {
-    let data = fs.readFileSync('./data/ATR.json')
-    return data.toString()
+    return getDataString('./data/ATR.json');
   } catch (err) {
-    global.errorLogger(err);
+    errorLogger(err);
   }
 }
 

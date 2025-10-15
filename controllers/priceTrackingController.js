@@ -4,6 +4,8 @@ const { klinesInit } = require('./calculatePositionsController');
 const { safeFormatPrice } = require('../utils/precisionUtils');
 const { getATRCompute } = require('../utils/mathUtils');
 const { API_CONFIG, MONITOR_CONFIG } = require('../core/constants');
+const { getData } = require('../utils/dataService');
+const { logger, errorLogger } = require('../utils/Logger');
 const WebSocket = require('ws');
 const { SocksProxyAgent } = require('socks-proxy-agent');
 const agent = new SocksProxyAgent(API_CONFIG.SOCKS_PROXY);
@@ -61,7 +63,7 @@ async function startTracking() {
     console.log(JSON.parse(data));
   })
   socket.on('error', (err) => {
-    global.errorLogger(err);
+    errorLogger(err);
   });
 }
 
@@ -70,14 +72,13 @@ async function startTracking() {
 let symbolHighLowCache = {}
 
 
-// 获取ATR数据
+// 获取ATR数据(使用SQLite)
 function getATRData() {
   try {
-    const data = fs.readFileSync('./data/ATR.json', 'utf8')
-    return JSON.parse(data || '{}')
+    return getData('./data/ATR.json') || {};
   } catch (error) {
-    global.errorLogger('读取ATR数据失败:', error)
-    return {}
+    errorLogger('读取ATR数据失败:', error);
+    return {};
   }
 }
 
@@ -88,7 +89,7 @@ async function getSymbolKlineData(symbol, limit = 50) {
     const klines = klinesInit(symbol, res.data).klines
     return klines
   } catch (error) {
-    global.errorLogger(`获取${symbol}K线数据失败:`, error)
+    errorLogger(`获取${symbol}K线数据失败:`, error)
     return null
   }
 }
@@ -122,7 +123,7 @@ async function monitorLongPosition(position) {
 
   if (isNewHigh) {
     symbolHighLowCache[symbol].high = currentPrice
-    global.logger.info(`${symbol} 创新高: ${currentPrice}`)
+    logger.info(`${symbol} 创新高: ${currentPrice}`)
 
     // 计算新的止损价格：从新高向下N个ATR
     const rawStopPrice = currentPrice - (MONITOR_CONFIG.POSITION_MONITOR.ATR_MULTIPLIER * currentATR)
@@ -136,7 +137,7 @@ async function monitorLongPosition(position) {
     // 如果新止损价格大于当前止损价格，则更新
     if (newStopPrice > currentStopPrice) {
       await setNewStopPrice(symbol, newStopPrice, 1)
-      global.logger.info(`${symbol} 做多止损调整: ${currentStopPrice} -> ${newStopPrice}`)
+      logger.info(`${symbol} 做多止损调整: ${currentStopPrice} -> ${newStopPrice}`)
     }
   }
 }
@@ -164,7 +165,7 @@ async function monitorShortPosition(position) {
 
   if (isNewLow) {
     symbolHighLowCache[symbol].low = currentPrice
-    global.logger.info(`${symbol} 创新低: ${currentPrice}`)
+    logger.info(`${symbol} 创新低: ${currentPrice}`)
 
     // 计算新的止损价格：从新低向上N个ATR
     const rawStopPrice = currentPrice + (MONITOR_CONFIG.POSITION_MONITOR.ATR_MULTIPLIER * currentATR)
@@ -178,15 +179,15 @@ async function monitorShortPosition(position) {
     // 如果新止损价格小于当前止损价格，则更新
     if (newStopPrice < currentStopPrice) {
       await setNewStopPrice(symbol, newStopPrice, -1)
-      global.logger.info(`${symbol} 做空止损调整: ${currentStopPrice} -> ${newStopPrice}`)
+      logger.info(`${symbol} 做空止损调整: ${currentStopPrice} -> ${newStopPrice}`)
     }
   }
 }
 
 // 增强的仓位监控系统
 function positionMonitor() {
-  global.logger.info('开始增强仓位监控系统')
-  global.logger.info(`监控配置: 检查间隔=${MONITOR_CONFIG.POSITION_MONITOR.CHECK_INTERVAL}, ATR倍数=${MONITOR_CONFIG.POSITION_MONITOR.ATR_MULTIPLIER}`)
+  logger.info('开始增强仓位监控系统')
+  logger.info(`监控配置: 检查间隔=${MONITOR_CONFIG.POSITION_MONITOR.CHECK_INTERVAL}, ATR倍数=${MONITOR_CONFIG.POSITION_MONITOR.ATR_MULTIPLIER}`)
 
   // 根据配置的时间间隔检查所有持仓
   schedule.scheduleJob(MONITOR_CONFIG.POSITION_MONITOR.CHECK_INTERVAL, async function () {
@@ -194,7 +195,7 @@ function positionMonitor() {
       const positions = await getAccountPosition()
       if (!positions || positions.length === 0) return
 
-      global.logger.info(`监控 ${positions.length} 个持仓品种`)
+      logger.info(`监控 ${positions.length} 个持仓品种`)
 
       for (const position of positions) {
         const positionSide = Number(position.positionAmt) > 0 ? 'LONG' : 'SHORT'
@@ -218,7 +219,7 @@ function positionMonitor() {
         }
       }
     } catch (error) {
-      global.errorLogger('仓位监控错误:', error)
+      errorLogger('仓位监控错误:', error)
     }
   })
 }
@@ -273,7 +274,7 @@ function stopPrice(position) {
 async function setNewStopPrice(symbol, stopPrice, direction) {
   let positionSide = direction > 0 ? 'LONG' : 'SHORT'
   await setStopPrice(symbol, positionSide, stopPrice)
-  global.logger.info(`${symbol}跟踪设置止盈成功`)
+  logger.info(`${symbol}跟踪设置止盈成功`)
 }
 
 module.exports = async function () {

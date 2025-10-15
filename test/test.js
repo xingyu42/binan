@@ -1,5 +1,6 @@
 const { getPositionRisk, getAccountData, getPositionSideDual, getListenKey,getKlines,getUserTrades } = require('../services/binanceContractService');
 const { getPreparingOrders, getAllExchangeInfo, getHighAndLow, klinesInit, getATR, getOneIndex } = require('../controllers/calculatePositionsController');
+const { logger, errorLogger } = require('../utils/Logger');
 // 获取账户头寸
 async function getAccountPosition() {
   let res = await getAccountData()
@@ -36,11 +37,11 @@ async function setTakeProfit () {
       takeProfitList.push(data)
       // let stopPrice = data.positionSide == 'SHORT' ? data.highestPoint : data.lowestPoint
       // await setStopPrice(data.symbol, data.positionSide, stopPrice)
-      // global.logger.info(`${data.symbol}设置止盈成功`)
+      // logger.info(`${data.symbol}设置止盈成功`)
     }
   }
   if (takeProfitList.length === 0){
-    global.logger.info('没有需要设置止盈的标的物')
+    logger.info('没有需要设置止盈的标的物')
   }
   return takeProfitList
 }

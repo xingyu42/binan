@@ -1,69 +1,31 @@
 // 定时控制器
 const schedule = require('node-schedule');
-const { getExchangeInfo, contractOrder, getAccountData, getServiceTime, getKlines, setStopPrice, getOneOpenOrders, getOpenOrders, deleteOrder } = require('../services/binanceContractService');
+const { getExchangeInfo, contractOrder, getAccountData, getServiceTime, getKlines, setStopPrice, getOpenOrders, deleteOrder } = require('../services/binanceContractService');
 const { exec } = require('child_process');
 const iconv = require('iconv-lite')
 const fs = require('fs');
 const { getPreparingOrders, getAllExchangeInfo, getHighAndLow, klinesInit, getATR, getOneIndex } = require('./calculatePositionsController');
+const { getData, getDataString, setData, setDataAsync } = require('../utils/dataService');
+const { logger, errorLogger } = require('../utils/Logger');
+const utils = require('../utils/util');
 
-// 读取数据
+// 读取数据(兼容旧接口,现在使用SQLite)
 function readFile(url){
   return new Promise(function (resolve, reject) {
-    fs.readFile(url, function (err, data) {
-      if (err) {
-        reject(err);
-        global.errorLogger(err)
-        process.exit(1)
-      }
-      resolve(data.toString())
-    })
+    try {
+      const data = getDataString(url);
+      resolve(data);
+    } catch (err) {
+      reject(err);
+      errorLogger(err);
+      process.exit(1);
+    }
   })
 }
 
-// 写入数据
-function writeFile(url,jsonString){
-  return new Promise(function (resolve, reject) {
-    fs.writeFile(url, jsonString, (err) => {
-      if (err) {
-        reject(err);
-        global.errorLogger(err)
-        process.exit(1)
-      }
-      resolve(true)
-    });
-  })
-}
-
-// 获取币安服务器时间更新服务器时间
-async function updateTime() {
-  const dateObj1 = new Date()
-  console.log("本地时间1:",dateObj1.toLocaleString())
-  let time =  await getServiceTime()
-  if (!time){
-    return time
-  }
-  // 更新时间通过时间戳
-  let timestamp = time.data.serverTime
-  const dateObj = new Date(timestamp);
-  const dateObj2 = new Date()
-  console.log("本地时间2:",dateObj2.toLocaleString())
-  console.log("币安服务器时间同步:", dateObj.toLocaleString());
-  const command = `set-date -Date '${(new Date(timestamp + 2000)).toLocaleString()}'`
-  async function execTime (command) {
-    return new Promise((resolve, reject) => {
-      exec(command, {'shell':'powershell.exe', encoding: 'buffer'}, (error, stdout, stderr) => {
-        if (error) {
-          global.errorLogger(`exec error: ${error}`)
-          reject()
-          return
-        }
-        console.log(`同步完成`);
-        resolve({ stdout: iconv.decode(stdout, 'cp936')})
-      });
-    })
-  }
-  let execData = await execTime(command)
-  return execData
+// 写入数据(兼容旧接口,现在使用SQLite)
+function writeFile(url, jsonString){
+  return setDataAsync(url, jsonString);
 }
 
 // 更新所有交易对的ATR和波动率
@@ -72,17 +34,7 @@ async function updateAllATR(callback) {
   let res = await getAllExchangeInfo()
   let symbols = res.map((item)=>item.symbol)
   let count = 0
-  function writeFile (url,obj,info){
-    fs.writeFile(url, JSON.stringify(obj), (err) => {
-      if (err) {
-        global.errorLogger(err)
-        process.exit(1)
-        return false
-      }
-      callback && callback(true)
-      global.logger.info(info)
-    })
-  }
+
   // 获取单个品种的指标
   async function getOne (symbol) {
     indexObject[symbol] = await getOneIndex(symbol)
@@ -98,57 +50,26 @@ async function updateAllATR(callback) {
         volObj[itemKey] = indexObject[itemKey].vol
         AAObj[itemKey] = indexObject[itemKey].averageAmplitude
       })
-      writeFile('./data/ATR.json',ATRObj,'更新ATR成功')
-      writeFile('./data/trendOscillation.json',TOJ,'更新金叉死叉数成功')
-      writeFile('./data/volatility.json',volObj,'更新波动率成功')
+
+      // 写入SQLite数据库
+      try {
+        setData('./data/ATR.json', ATRObj);
+        logger.info('更新ATR成功');
+        setData('./data/trendOscillation.json', TOJ);
+        logger.info('更新金叉死叉数成功');
+        setData('./data/volatility.json', volObj);
+        logger.info('更新波动率成功');
+        callback && callback(true);
+      } catch (err) {
+        errorLogger(err);
+        process.exit(1);
+      }
     };
   }
   for (let i in symbols) {
     let symbol = symbols[i]
     getOne(symbol)
   }
-}
-
-// 根据波动率设置黑名单
-function setBlackList (VolatilityObject) {
-  let symbols = Object.keys(VolatilityObject)
-  let blockList = []
-  for (let i in symbols) {
-    let symbol = symbols[i]
-    let volatility = VolatilityObject[symbol]
-    if (volatility < 0.001){
-      blockList.push(symbol)
-      continue
-    }
-  }
-  fs.writeFile('./data/blackList.json', JSON.stringify(blockList), (err) => {
-    if (err) {
-      global.errorLogger(err)
-      process.exit(1)
-      return false
-    }
-    global.logger.info('设置黑名单成功')
-  })
-}
-
-function formatDateTime(date) {
-  // 在个位数前添加0
-  function addLeadingZero(number) {
-    return number < 10 ? "0" + number : number;
-  }
-  // 获取年份
-  var year = date.getFullYear();
-  // 获取月份，月份从0开始，需要加1
-  var month = date.getMonth() + 1;
-  // 获取日期
-  var day = date.getDate();
-  // 获取小时
-  var hours = date.getHours();
-  // 获取分钟
-  var minutes = date.getMinutes();
-  // 组合成"yyyy-mm-dd HH:mm"格式
-  var formattedDate = year + "-" + addLeadingZero(month) + "-" + addLeadingZero(day) + " " + addLeadingZero(hours) + ":" + addLeadingZero(minutes);
-  return formattedDate;
 }
 
 // 记录账号历史最大权益
@@ -160,29 +81,21 @@ async function setUpdateEquity(){
     data.equity = equity
   }
   await writeFile('./data/equity.json', JSON.stringify(data))
-  global.logger.info('账号历史最大权益更新成功')
+  logger.info('账号历史最大权益更新成功')
   return true
 }
 
 // 更新合约交易对
 async function updateAllExchangeInfo(){
   let res = await getExchangeInfo()
-  if (!res) { return global.logger.info('更新交易对失败') }
+  if (!res) { return logger.info('更新交易对失败') }
   let symbols = res.data.symbols
   let data = symbols.filter(item => item.symbol.includes("USDT")).filter(item => item.status === 'TRADING')
   await writeFile('./data/data.json', JSON.stringify(data))
-  global.logger.info('更新交易对成功')
+  logger.info('更新交易对成功')
   setUpdateEquity()
   updateAllATR()
   return true
-}
-
-// 最多下单头寸
-async function getMaxAvailableBalance (){
-  let res = await getAccountData()
-  let availableBalance = Number(res.availableBalance) // 账户余额
-  let totalMarginBalance = Number(res.totalMarginBalance)/2 // 对半账户权益
-  return totalMarginBalance > availableBalance ? availableBalance : totalMarginBalance
 }
 
 // 获取账户头寸
@@ -206,7 +119,7 @@ async function getEquityAmount () {
   if (equityMaxHistory.equity > res.totalMarginBalance){
     withdrawalAmplitude = (equityMaxHistory.equity - res.totalMarginBalance)/equityMaxHistory.equity
   }
-  global.logger.info('回撤幅度', withdrawalAmplitude.toFixed(3))
+  logger.info('回撤幅度', withdrawalAmplitude.toFixed(3))
   return {
     num:(equity/3) * Math.pow((1 - withdrawalAmplitude.toFixed(3)), 2),
     withdrawalAmplitude:withdrawalAmplitude.toFixed(3)
@@ -225,7 +138,7 @@ async function order (){
   let orderNumber = parseInt(tradingExchangeNum/16 * (1 - equityAmount.withdrawalAmplitude )) // 最多下单数量
   let orderList = await getPreparingOrders(equityAmount.num, position, allExchange, orderNumber)
   if (orderList.length == 0){
-    global.logger.info('没有符合条件的标的')
+    logger.info('没有符合条件的标的')
     return
   }
   let count = 0
@@ -236,7 +149,7 @@ async function order (){
   let maxAddOrderNumber = addOrderNumber // 最大开仓加仓数量不再有限制
   let addCount = 0 // 加仓计数器
   let allCount = orderList.length
-  global.logger.info('开始下单',orderList.map(item => item.symbol).join(', '));
+  logger.info('开始下单',orderList.map(item => item.symbol).join(', '));
   // 生成一个从1.2到0.8递减的数组
   function generateArray(length) {
     if (length == 1){
@@ -253,37 +166,71 @@ async function order (){
     return resultArray;
   }
   function getNum(num,yNum){
-    let z = global.utils.getPrecision(yNum)
-    return global.utils.truncateDecimal(num,z)
+    let z = utils.getPrecision(yNum)
+    return utils.truncateDecimal(num,z)
   }
-  // 获取下单数量
+
+  /**
+   * 计算最小下单数量(消除if-else分支)
+   * @param {number} minQty - 币安规定的最小数量
+   * @param {number} stepSize - 数量步进值
+   * @param {number} closePrice - 当前价格
+   * @param {number} notional - 最小名义价值
+   * @returns {number} 最小数量
+   */
+  function calculateMinQuantity(minQty, stepSize, closePrice, notional) {
+    // 基于名义价值的最小数量
+    const notionalBasedMin = Math.ceil(notional / (stepSize * closePrice)) * stepSize;
+    // 返回两者中的较大值 (替代if-else,这就是Good Taste)
+    return Math.max(minQty, notionalBasedMin);
+  }
+
+  /**
+   * 将数值限制在范围内(消除两个独立的if分支)
+   * @param {number} value - 原始值
+   * @param {number} min - 最小值
+   * @param {number} max - 最大值
+   * @returns {number} 限制后的值
+   */
+  function clamp(value, min, max) {
+    return Math.max(min, Math.min(max, value));
+  }
+
+  /**
+   * 获取下单数量 (重构后 - Good Taste版本)
+   * 原代码23行3层嵌套 → 重构后12行2层嵌套
+   * @param {Object} item - 仓位信息
+   * @param {number} num - 下单金额系数
+   * @returns {number} 最终下单数量
+   */
   function getQuantity (item, num) {
-    let quantity = getNum(parseFloat(item.quantity) * num, parseFloat(item.quantity))
-    let minQuantity = 0
-    let minQty = parseFloat(item.minQty)
-    let maxQty = parseFloat(item.maxQty)
-    let stepSize = parseFloat(item.stepSize)
-    let notional = parseFloat(item.notional)
-    let closePrice = item.closePrice
-    if (minQty *  closePrice <= notional){
-      minQuantity = Math.ceil(notional/(stepSize * closePrice)) * stepSize // 需要多少个进步值才可以大于最小名义价值
-    } else{
-      minQuantity = minQty
-    }
-    if (quantity < minQuantity){
-      quantity = minQuantity
-    }
-    if (quantity > maxQty){
-      quantity = maxQty
-    }
-    global.logger.info(item.symbol,'下单处理的数量', quantity, getNum(quantity, parseFloat(item.quantity)))
-    return getNum(quantity, parseFloat(item.quantity))
+    // 1. 计算原始数量
+    const rawQuantity = getNum(parseFloat(item.quantity) * num, parseFloat(item.quantity));
+
+    // 2. 提取参数(提前解析,避免重复计算)
+    const minQty = parseFloat(item.minQty);
+    const maxQty = parseFloat(item.maxQty);
+    const stepSize = parseFloat(item.stepSize);
+    const notional = parseFloat(item.notional);
+    const closePrice = item.closePrice;
+
+    // 3. 计算最小数量 (消除if-else分支)
+    const minQuantity = calculateMinQuantity(minQty, stepSize, closePrice, notional);
+
+    // 4. 限制到有效范围 (消除两个if分支: if (quantity < min) ... if (quantity > max) ...)
+    const clampedQuantity = clamp(rawQuantity, minQuantity, maxQty);
+
+    // 5. 格式化到步进精度并记录
+    const finalQuantity = getNum(clampedQuantity, parseFloat(item.quantity));
+    logger.info(item.symbol, '下单处理的数量', finalQuantity);
+
+    return finalQuantity;
   }
   let generatedArray = generateArray(orderList.length);
   async function setOrder(item, callback, num){
     let quantity = getQuantity(item, num)
     if (quantity == 0){
-      global.logger.info(item.symbol,'数量为0不再下单')
+      logger.info(item.symbol,'数量为0不再下单')
     }
     else {
       await contractOrder({
@@ -305,7 +252,7 @@ async function order (){
         if (!orderList[i].isOne){
           addCount++
           if (addCount > maxAddOrderNumber) {
-            global.logger.info(orderList[i].symbol,'不再加仓')
+            logger.info(orderList[i].symbol,'不再加仓')
             count++
             if(count == allCount){
               resolve()
@@ -321,7 +268,7 @@ async function order (){
     });
   }
   await forOrder()
-  global.logger.info('下单完毕')
+  logger.info('下单完毕')
 }
 
 // 对所有开仓并符合条件的标的物设置止盈
@@ -388,75 +335,17 @@ async function setTakeProfit () {
       let formattedStopPrice = formatPriceByTickSize(stopPrice, getTickSize(data.symbol));
       await setStopPrice(data.symbol, data.positionSide, formattedStopPrice)
       if (data.positionSide == 'SHORT'){
-        global.logger.info(data.highestPoint < Number(data.entryPrice) ? `${data.symbol}设置止盈成功` : `${data.symbol}设置止损移动成功`)
+        logger.info(data.highestPoint < Number(data.entryPrice) ? `${data.symbol}设置止盈成功` : `${data.symbol}设置止损移动成功`)
       }
       if (data.positionSide == 'LONG'){
-        global.logger.info(data.lowestPoint > Number(data.entryPrice) ? `${data.symbol}设置止盈成功` : `${data.symbol}设置止损移动成功`)
+        logger.info(data.lowestPoint > Number(data.entryPrice) ? `${data.symbol}设置止盈成功` : `${data.symbol}设置止损移动成功`)
       }
     }
   }
   if (takeProfitList.length === 0){
-    global.logger.info('没有需要设置止盈的标的物')
+    logger.info('没有需要设置止盈的标的物')
   }
   return takeProfitList
-}
-
-// 获取单个品种的风险
-async function getOneRisk(symbol, entryPrice, leverage, isolatedWallet){
-  let data = await getOneOpenOrders(symbol)
-  let stopPrice = data[data.length - 1]?.stopPrice
-  let ads = Math.abs(Number(entryPrice) - Number(stopPrice))
-  let b = (ads/entryPrice) * Number(leverage)
-  return Number(isolatedWallet) * b
-}
-
-// 获取仓位盈亏以及风险
-async function getPositionRisk () {
-  let position = await getAccountPosition()
-  let unrealizedProfit = 0
-  let maxRisk = 0
-  let marginAlreadyUsed = 0
-  for (let i in position) {
-    unrealizedProfit += Number(position[i].unrealizedProfit)
-    maxRisk += await getOneRisk(position[i].symbol,position[i].entryPrice,position[i].leverage,position[i].isolatedWallet)
-    marginAlreadyUsed += Number(position[i].isolatedWallet)
-  }
-  console.log('已经使用的保证金', marginAlreadyUsed)
-  console.log('可能出现的最大亏损', maxRisk)
-  console.log('仓位盈亏', unrealizedProfit)
-  return {
-    maxRisk,
-    unrealizedProfit,
-    marginAlreadyUsed
-  }
-}
-
-// 获取当前仓位
-async function start () {
-  // await order()
-  deleteAllInvalidOrders()
-  console.log('完成')
-    // 防止币安未能及时处理延迟三秒
-  // setTimeout(async function() {
-  //   global.logger.info('开始仓位止盈设置')
-  //   await setTakeProfit()
-  //   global.logger.info('删除无效委托')
-  //   await deleteAllInvalidOrders()
-  // }, 3000);
-  // let time = await updateTime()
-  // if (!time) return global.errorLogger('时间同步失败', time)
-  // getPositionRisk()
-  // let data = await getOpenOrders()
-  // console.log(data)
-  // deleteAllInvalidOrders()
-  // updateAllExchangeInfo()
-  // console.log('符合条件可以下单的仓位')
-  // let list = await getPreparingOrders(3000)
-  // console.log(list)
-  // let orders = list.slice(0, 5)
-  // for (let i in orders) {
-  //   console.log(`===========\n名字 ${orders[i].symbol}\n方向 ${orders[i].direction < 0 ? '做空' : '做多'}\n杠杆 ${orders[i].leverage}\n数量USDT ${orders[i].position}\n价格 ${orders[i].closePrice}\n止损 ${orders[i].stopPrice}`)
-  // }
 }
 
 // 删除已经无用的委托
@@ -493,59 +382,68 @@ async function deleteAllInvalidOrders(isDeL){
     }
   }
   if (invalidOrders.length > 0){
-    global.logger.info('开始删除无效订单')
+    logger.info('开始删除无效订单')
     for (let i in invalidOrders){
       await deleteOrder(invalidOrders[i].symbol, invalidOrders[i].orderId)
-      global.logger.info('撤销挂单完成',invalidOrders[i].symbol,invalidOrders[i].orderId,invalidOrders[i].stopPrice)
+      logger.info('撤销挂单完成',invalidOrders[i].symbol,invalidOrders[i].orderId,invalidOrders[i].stopPrice)
     }
   } else {
-    global.logger.info('没有需要删除的订单')
+    logger.info('没有需要删除的订单')
   }
 }
 
 
-// 初始化数据
+// 初始化数据(使用SQLite,无需检查JSON文件)
 async function initData () {
-  // 判断data文件夹存不存在
-  if (!fs.existsSync('./data')){
-    fs.mkdirSync('./data')
+  const dataRepository = require('../utils/OrderRepository');
+
+  // 初始化SQLite数据库
+  if (!dataRepository.db) {
+    dataRepository.initialize();
   }
-  if (!fs.existsSync('./data/ATR.json')){
-    fs.writeFileSync('./data/ATR.json','')
+
+  // 初始化默认数据
+  // 黑白名单使用JSON文件,检查文件是否存在
+  const path = require('path');
+  const blackListPath = path.join(process.cwd(), 'data', 'blackList.json');
+  const whiteListPath = path.join(process.cwd(), 'data', 'whiteList.json');
+
+  if (!fs.existsSync(blackListPath)) {
+    setData('./data/blackList.json', ['USDCUSDT']);
+    logger.info('初始化黑名单');
   }
-  if (!fs.existsSync('./data/blackList.json')){
-    fs.writeFileSync('./data/blackList.json','["USDCUSDT"]')
+  if (!fs.existsSync(whiteListPath)) {
+    setData('./data/whiteList.json', ['BTCUSDT']);
+    logger.info('初始化白名单');
   }
-  if (!fs.existsSync('./data/whiteList.json')){
-    fs.writeFileSync('./data/whiteList.json','["BTCUSDT"]')
+  if (!dataRepository.exists('equity')) {
+    let res = await getAccountData();
+    let equity = Number(res.totalMarginBalance);
+    setData('./data/equity.json', { equity });
   }
-  if (!fs.existsSync('./data/equity.json')){
-    let res = await getAccountData()
-    let equity = Number(res.totalMarginBalance)
-    fs.writeFileSync('./data/equity.json',`{"equity": ${equity}}`)
-  }
-  updateAllExchangeInfo()
+
+  updateAllExchangeInfo();
 }
 
 module.exports = async function () {
-  global.logger.info('定时交易策略开始')
+  logger.info('定时交易策略开始')
   // test()
   initData()
   schedule.scheduleJob('4 0 7 * * *',async function () {
     // 更新合约交易
-    global.logger.info('更新合约对开始');
+    logger.info('更新合约对开始');
     // await updateTime()
     updateAllExchangeInfo()
   })
   schedule.scheduleJob('10 0 8 * * *', async function () {
-    global.logger.info('获取下单交易数据下单')
+    logger.info('获取下单交易数据下单')
     await order()
     // 防止币安未能及时处理延迟三秒
     setTimeout(async function() {
-      global.logger.info('开始仓位止盈设置')
+      logger.info('开始仓位止盈设置')
       await setTakeProfit()
       setTimeout(async function() {
-        global.logger.info('删除无效委托')
+        logger.info('删除无效委托')
         await deleteAllInvalidOrders(true)
       }, 10000);
     }, 3000);

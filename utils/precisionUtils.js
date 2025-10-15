@@ -4,6 +4,7 @@
  */
 
 const { getAllExchangeInfo } = require('../controllers/calculatePositionsController');
+const { logger, errorLogger } = require('./Logger');
 
 // 交易对信息缓存
 let exchangeInfoCache = null;
@@ -17,7 +18,7 @@ async function getExchangeInfo() {
     try {
       exchangeInfoCache = await getAllExchangeInfo();
     } catch (error) {
-      global.errorLogger('获取交易对信息失败:', error);
+      errorLogger('获取交易对信息失败:', error);
       return [];
     }
   }
@@ -192,13 +193,13 @@ async function safeFormatPrice(price, symbol) {
     const formattedPrice = formatPriceByTickSize(price, tickSize);
     
     if (!validatePricePrecision(formattedPrice, tickSize)) {
-      global.errorLogger(`价格精度验证失败: ${symbol}, price: ${price}, formatted: ${formattedPrice}, tickSize: ${tickSize}`);
+      errorLogger(`价格精度验证失败: ${symbol}, price: ${price}, formatted: ${formattedPrice}, tickSize: ${tickSize}`);
       return formatPriceByTickSize(price, tickSize); // 仍然返回格式化后的价格
     }
     
     return formattedPrice;
   } catch (error) {
-    global.errorLogger(`价格格式化失败: ${symbol}, price: ${price}`, error);
+    errorLogger(`价格格式化失败: ${symbol}, price: ${price}`, error);
     return price; // 失败时返回原始价格
   }
 }
@@ -215,13 +216,13 @@ async function safeFormatQuantity(quantity, symbol) {
     const formattedQuantity = formatQuantityByStepSize(quantity, stepSize);
     
     if (!validateQuantityPrecision(formattedQuantity, stepSize)) {
-      global.errorLogger(`数量精度验证失败: ${symbol}, quantity: ${quantity}, formatted: ${formattedQuantity}, stepSize: ${stepSize}`);
+      errorLogger(`数量精度验证失败: ${symbol}, quantity: ${quantity}, formatted: ${formattedQuantity}, stepSize: ${stepSize}`);
       return formatQuantityByStepSize(quantity, stepSize); // 仍然返回格式化后的数量
     }
     
     return formattedQuantity;
   } catch (error) {
-    global.errorLogger(`数量格式化失败: ${symbol}, quantity: ${quantity}`, error);
+    errorLogger(`数量格式化失败: ${symbol}, quantity: ${quantity}`, error);
     return quantity; // 失败时返回原始数量
   }
 }

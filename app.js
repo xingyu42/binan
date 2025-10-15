@@ -8,18 +8,16 @@ const port = process.env.NODE_ENV === 'development' ? APP_CONFIG.PORT.DEVELOPMEN
 const timing = require('./controllers/timingController')
 const tracking = require('./controllers/priceTrackingController')
 const test =  require('./test/test')
-const log4js = require('log4js')
-const util = require('./utils/util')
+const dataRepository = require('./utils/OrderRepository')
+const { logger, errorLogger } = require('./utils/Logger')
 
-global.utils = util
-
-log4js.configure(APP_CONFIG.LOG_CONFIG);
-
-const logger = log4js.getLogger();
-const errorLogger = log4js.getLogger('error');
-global.logger = logger;
-global.errorLogger = (...msg) =>{
-  errorLogger.error(...msg)
+// 初始化SQLite数据库
+try {
+  dataRepository.initialize();
+  logger.info('SQLite database initialized successfully');
+} catch (error) {
+  errorLogger('Failed to initialize SQLite database:', error);
+  process.exit(1);
 }
 // 配置中间件
 // ...
@@ -36,7 +34,7 @@ app.get('*', (req, res) => {
 // 启动应用程序
 app.listen(port, () => {
   console.log(`Server started on port ${port}`)
-  global.logger.info('开启系统成功')
+  logger.info('开启系统成功')
 });
 
 // 定时应用程序

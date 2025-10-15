@@ -5,6 +5,7 @@ const { createHmac } = require('crypto')
 const { apiSecret } = require('../config/config')
 const JSONbig = require('json-bigint')
 const { SYSTEM_LIMITS, API_CONFIG } = require('../core/constants')
+const { logger, errorLogger } = require('../utils/Logger')
 
 // 创建代理实例
 let httpsAgent = null
@@ -108,14 +109,12 @@ function handleError(error) {
   } else if (error.response?.status === 429) {
     console.error('请求频率过高，请降低请求频率')
   }
-  // 使用全局错误记录器（如果存在）
-  if (global.errorLogger) {
-    global.errorLogger(`请求类型: ${errorInfo.method}`)
-    global.errorLogger(`请求路径: ${errorInfo.url}`)
-    global.errorLogger(`请求参数: ${JSON.stringify(errorInfo.params)}`)
-    global.errorLogger(`错误信息: ${errorInfo.message}`)
-    global.errorLogger(`响应数据: ${JSON.stringify(errorInfo.responseData)}`)
-  }
+  // 使用错误记录器
+  errorLogger(`请求类型: ${errorInfo.method}`)
+  errorLogger(`请求路径: ${errorInfo.url}`)
+  errorLogger(`请求参数: ${JSON.stringify(errorInfo.params)}`)
+  errorLogger(`错误信息: ${errorInfo.message}`)
+  errorLogger(`响应数据: ${JSON.stringify(errorInfo.responseData)}`)
   return Promise.reject(error)
 }
 
@@ -252,40 +251,23 @@ function logRetryAttempt(error, retryCount, delay) {
   const errorType = getErrorType(error);
   const message = `${errorType} - 第${retryCount}次重试, 延迟${Math.round(delay)}ms`;
 
-  if (global.logger) {
-    global.logger.warn(message, {
-      url: error.config?.url,
-      method: error.config?.method,
-      status: error.response?.status,
-      code: error.code
-    });
-  } else {
-    console.warn(`[重试] ${message}`, {
-      url: error.config?.url,
-      method: error.config?.method,
-      status: error.response?.status,
-      code: error.code
-    });
-  }
+  logger.warn(message, {
+    url: error.config?.url,
+    method: error.config?.method,
+    status: error.response?.status,
+    code: error.code
+  });
 }
 
 // 记录重试成功信息
 function logRetrySuccess(config) {
   const message = `✅ 重试成功! 总计重试${config._retryCount}次后成功`;
 
-  if (global.logger) {
-    global.logger.info(message, {
-      url: config.url,
-      method: config.method,
-      retryCount: config._retryCount
-    });
-  } else {
-    console.log(`[重试成功] ${message}`, {
-      url: config.url,
-      method: config.method,
-      retryCount: config._retryCount
-    });
-  }
+  logger.info(message, {
+    url: config.url,
+    method: config.method,
+    retryCount: config._retryCount
+  });
 }
 
 // 获取错误类型描述
@@ -298,18 +280,16 @@ function getErrorType(error) {
   return '未知错误';
 }
 
+// 模块级别的请求队列单例 (用于多实例间协调)
+let apiRequestQueue = {
+  lastRequestTime: 0,
+  pendingRequests: [],
+  processing: false
+};
+
 // 队列拦截器：使用请求拦截器实现队列控制
 function createImprovedQueueInterceptor(axiosInstance) {
-  // 使用静态变量或全局变量来确保多实例间的协调
-  if (!global.apiRequestQueue) {
-    global.apiRequestQueue = {
-      lastRequestTime: 0,
-      pendingRequests: [],
-      processing: false
-    };
-  }
-
-  const queue = global.apiRequestQueue;
+  const queue = apiRequestQueue;
   const requestInterval = SYSTEM_LIMITS.API_LIMITS.KLINE_REQUEST_INTERVAL;
 
   axiosInstance.interceptors.request.use(async (config) => {

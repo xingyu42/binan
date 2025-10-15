@@ -1,5 +1,6 @@
 const { getPositionRisk, getAccountData, getPositionSideDual } = require('../services/binanceContractService');
 const fs = require('fs');
+const { errorLogger } = require('../utils/Logger');
 
 async function getAccountPosition() {
   let res = await getAccountData()
@@ -14,7 +15,7 @@ async function getPrice(req, res) {
     const data = await getAccountPosition()
     res.send(data)
   } catch (error) {
-    global.errorLogger('Error fetching market data:', error);
+    errorLogger('Error fetching market data:', error);
     res.status(500).send('An error occurred while fetching market data');
   }
 }
@@ -22,7 +23,7 @@ async function getPrice(req, res) {
 async function getErrorLog (req, res) {
   fs.readFile('./logs/error.log', (err, data) => {
     if (err) {
-      global.errorLogger(err)
+      errorLogger(err)
       process.exit(1)
     }
     res.send(data.toString())
@@ -32,7 +33,7 @@ async function getErrorLog (req, res) {
 async function getAppLog (req, res) {
   fs.readFile('./logs/app.log', (err, data) => {
     if (err) {
-      global.errorLogger(err)
+      errorLogger(err)
       process.exit(1)
     }
     res.send(data.toString())
@@ -44,7 +45,7 @@ async function getUsers(req, res) {
     const data = await getAccountData()
     res.send(data)
   } catch (error) {
-    global.errorLogger('Error fetching market data:', error);
+    errorLogger('Error fetching market data:', error);
     res.status(500).send('An error occurred while fetching market data');
   }
 }
@@ -54,7 +55,7 @@ async function getPositions(req, res) {
     const data = await getAccountPosition()
     res.send(data)
   } catch (error) {
-    global.errorLogger('Error fetching market data:', error);
+    errorLogger('Error fetching market data:', error);
     res.status(500).send('An error occurred while fetching market data');
   }
 }
