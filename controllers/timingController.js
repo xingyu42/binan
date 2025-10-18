@@ -1,13 +1,41 @@
 // 定时控制器
 const schedule = require('node-schedule');
-const { getExchangeInfo, contractOrder, getAccountData, getServiceTime, getKlines, setStopPrice, getOpenOrders, deleteOrder } = require('../services/binanceContractService');
-const { exec } = require('child_process');
-const iconv = require('iconv-lite')
+const { getExchangeInfo, contractOrder, getAccountData, getKlines, setStopPrice, getOpenOrders, deleteOrder } = require('../services/binanceContractService');
+// const { exec } = require('child_process');
 const fs = require('fs');
 const { getPreparingOrders, getAllExchangeInfo, getHighAndLow, klinesInit, getATR, getOneIndex } = require('./calculatePositionsController');
-const { getData, getDataString, setData, setDataAsync } = require('../utils/dataService');
+const { getDataString, setData, setDataAsync } = require('../utils/dataService');
 const { logger, errorLogger } = require('../utils/Logger');
+const { getTickSize, formatPriceByTickSize } = require('../utils/precisionUtils');
 const utils = require('../utils/util');
+
+/**
+ * 轮询等待直到条件满足
+ * @param {Function} checkFn - 返回布尔值的检查函数
+ * @param {Object} options - 配置项
+ * @returns {Promise<boolean>} - 成功返回 true,超时返回 false
+ */
+async function waitForCondition(checkFn, options = {}) {
+  const { maxAttempts = 10, interval = 1000 } = options;
+
+  for (let i = 0; i < maxAttempts; i++) {
+    try {
+      if (await checkFn()) {
+        logger.info(`条件满足,尝试次数: ${i + 1}`);
+        return true;
+      }
+    } catch (error) {
+      logger.warn(`检查过程出错: ${error.message}`);
+    }
+
+    if (i < maxAttempts - 1) {
+      await new Promise(resolve => setTimeout(resolve, interval));
+    }
+  }
+
+  logger.error(`轮询超时(${maxAttempts}次尝试),条件未满足`);
+  return false;
+}
 
 // 读取数据(兼容旧接口,现在使用SQLite)
 function readFile(url){
@@ -42,8 +70,8 @@ async function updateAllATR(callback) {
     if (count === res.length){
       let ATRObj = {} // ATR
       let TOJ = {}  // 金死叉次数
-      let volObj = {} // 波动率
-      let AAObj = {} // 振幅
+      let volObj = {} // 波动率 //todo:未使用
+      let AAObj = {} // 振幅 //TODO：未使用
       Object.keys(indexObject).forEach(itemKey => {
         ATRObj[itemKey] = indexObject[itemKey].ATR
         TOJ[itemKey] = indexObject[itemKey].trendOscillation
@@ -137,22 +165,19 @@ async function order (){
   let tradingExchangeNum = allExchange.filter(symbol => symbol.status === 'TRADING').length // 可交易的合约的数量
   let orderNumber = parseInt(tradingExchangeNum/16 * (1 - equityAmount.withdrawalAmplitude )) // 最多下单数量
   let orderList = await getPreparingOrders(equityAmount.num, position, allExchange, orderNumber)
-  if (orderList.length == 0){
+  if (orderList.length === 0){
     logger.info('没有符合条件的标的')
     return
   }
-  let count = 0
   const addOrderNumber = orderList.reduce((count, item) => {
     return !item.isOne ? count + 1 : count;
   }, 0);
   // let maxAddOrderNumber = parseInt(addOrderNumber * (1 - equityAmount.withdrawalAmplitude )) // 最大开仓数量
   let maxAddOrderNumber = addOrderNumber // 最大开仓加仓数量不再有限制
-  let addCount = 0 // 加仓计数器
-  let allCount = orderList.length
   logger.info('开始下单',orderList.map(item => item.symbol).join(', '));
   // 生成一个从1.2到0.8递减的数组
   function generateArray(length) {
-    if (length == 1){
+    if (length === 1){
       return [1]
     }
     let startValue = 1.2;
@@ -197,11 +222,10 @@ async function order (){
   }
 
   /**
-   * 获取下单数量 (重构后 - Good Taste版本)
-   * 原代码23行3层嵌套 → 重构后12行2层嵌套
+   * 获取下单数量
    * @param {Object} item - 仓位信息
    * @param {number} num - 下单金额系数
-   * @returns {number} 最终下单数量
+   * @returns {number} 最终下单数量,如果不满足最小名义价值则返回0
    */
   function getQuantity (item, num) {
     // 1. 计算原始数量
@@ -214,61 +238,65 @@ async function order (){
     const notional = parseFloat(item.notional);
     const closePrice = item.closePrice;
 
-    // 3. 计算最小数量 (消除if-else分支)
+    // 3. 提前检查:原始数量是否满足最小名义价值
+    const rawNotionalValue = rawQuantity * closePrice;
+    if (rawNotionalValue < notional) {
+      logger.warn(
+        `${item.symbol} 仓位 ${rawNotionalValue.toFixed(2)}U < 交易所最小值 ${notional}U, `
+      );
+      return 0;
+    }
+
+    // 4. 计算最小数量
     const minQuantity = calculateMinQuantity(minQty, stepSize, closePrice, notional);
 
-    // 4. 限制到有效范围 (消除两个if分支: if (quantity < min) ... if (quantity > max) ...)
+    // 5. 限制到有效范围
     const clampedQuantity = clamp(rawQuantity, minQuantity, maxQty);
 
-    // 5. 格式化到步进精度并记录
+    // 6. 格式化到步进精度并记录
     const finalQuantity = getNum(clampedQuantity, parseFloat(item.quantity));
     logger.info(item.symbol, '下单处理的数量', finalQuantity);
 
     return finalQuantity;
   }
   let generatedArray = generateArray(orderList.length);
-  async function setOrder(item, callback, num){
-    let quantity = getQuantity(item, num)
-    if (quantity == 0){
-      logger.info(item.symbol,'数量为0不再下单')
-    }
-    else {
-      await contractOrder({
-        symbol: item.symbol,
-        positionSide: item.direction > 0 ? 'LONG' : 'SHORT',
-        quantity: quantity,
-        stopPrice: item.stopPrice,
-        leverage: item.leverage
-      })
-    }
-    count++
-    if(count == allCount){
-      callback()
-    }
-  }
-  function forOrder() {
-    return new Promise(async function (resolve) {
-      for (let i in orderList){
-        if (!orderList[i].isOne){
-          addCount++
-          if (addCount > maxAddOrderNumber) {
-            logger.info(orderList[i].symbol,'不再加仓')
-            count++
-            if(count == allCount){
-              resolve()
-            }
-            continue
-          } else {
-            setOrder(orderList[i], resolve, generatedArray[i])
-          }
-        } else {
-          setOrder(orderList[i], resolve, generatedArray[i])
+
+  async function executeOrders() {
+    let addCount = 0;
+    const tasks = orderList.map((order, index) => {
+      if (!order.isOne) {
+        addCount++;
+        if (addCount > maxAddOrderNumber) {
+          logger.info(order.symbol,'不再加仓');
+          return Promise.resolve();
         }
       }
+      return placeOrder(order, generatedArray[index]);
     });
+    await Promise.all(tasks);
+    logger.info('下单完毕');
   }
-  await forOrder()
-  logger.info('下单完毕')
+
+  async function placeOrder(order, coefficient) {
+    const quantity = getQuantity(order, coefficient);
+    if (quantity === 0) {
+      logger.info(order.symbol,'数量为0不再下单');
+      return;
+    }
+    try {
+      await contractOrder({
+        symbol: order.symbol,
+        positionSide: order.direction > 0 ? 'LONG' : 'SHORT',
+        quantity,
+        stopPrice: order.stopPrice,
+        leverage: order.leverage
+      });
+    } catch (error) {
+      errorLogger(`${order.symbol} 下单失败`, error);
+    }
+  }
+
+  await executeOrders()
 }
 
 // 对所有开仓并符合条件的标的物设置止盈
@@ -280,27 +308,6 @@ async function setTakeProfit () {
     item.orderId = item.orderId.toString()
     return item
   })
-  function getPricePrecisionFromTickSize(tickSize) {
-    const tickSizeStr = tickSize.toString()
-    if (tickSizeStr.includes('.')) {
-        return tickSizeStr.split('.')[1].length
-    }
-    return 0
-  }
-  function getTickSize(symbol) {
-    const symbolInfo = allExchange.find(item => item.symbol === symbol);
-    if (symbolInfo) {
-        const priceFilter = symbolInfo.filters.find(filter => filter.filterType === 'PRICE_FILTER')
-        return priceFilter ? priceFilter.tickSize : '0.0001'
-    }
-    return '0.0001'
-  }
-  function formatPriceByTickSize(price, tickSize) {
-    const tickSizeNum = parseFloat(tickSize)
-    const precision = getPricePrecisionFromTickSize(tickSize)
-    const adjustedPrice = Math.round(price / tickSizeNum) * tickSizeNum
-    return parseFloat(adjustedPrice.toFixed(precision))
-  }
   function getOneOrder(symbol){
     for (let i in orders){
       if (orders[i].symbol == symbol){
@@ -332,7 +339,8 @@ async function setTakeProfit () {
     if (signal(data)){
       takeProfitList.push(data)
       let stopPrice = data.positionSide == 'SHORT' ? data.highestPoint : data.lowestPoint
-      let formattedStopPrice = formatPriceByTickSize(stopPrice, getTickSize(data.symbol));
+      const tickSize = await getTickSize(data.symbol);
+      let formattedStopPrice = formatPriceByTickSize(stopPrice, tickSize);
       await setStopPrice(data.symbol, data.positionSide, formattedStopPrice)
       if (data.positionSide == 'SHORT'){
         logger.info(data.highestPoint < Number(data.entryPrice) ? `${data.symbol}设置止盈成功` : `${data.symbol}设置止损移动成功`)
@@ -437,15 +445,47 @@ module.exports = async function () {
   })
   schedule.scheduleJob('10 0 8 * * *', async function () {
     logger.info('获取下单交易数据下单')
+    // 使用主动验证替代固定延迟
     await order()
-    // 防止币安未能及时处理延迟三秒
-    setTimeout(async function() {
-      logger.info('开始仓位止盈设置')
-      await setTakeProfit()
-      setTimeout(async function() {
-        logger.info('删除无效委托')
-        await deleteAllInvalidOrders(true)
-      }, 10000);
-    }, 3000);
+      .then(async () => {
+        logger.info('开始仓位止盈设置');
+        const takeProfitList = await setTakeProfit();
+
+        // 如果没有需要设置止盈的标的,直接返回成功
+        if (takeProfitList.length === 0) {
+          return true;
+        }
+
+        // 轮询验证止盈单是否已生效
+        return waitForCondition(
+    async () => {
+      const orders = await getOpenOrders();
+
+            // 检查每个需要止盈的持仓是否都有对应的挂单
+            return takeProfitList.every(tp => {
+              const matchingOrder = orders.find(
+                order => order.symbol === tp.symbol && order.positionSide === tp.positionSide
+              );
+              return matchingOrder !== undefined;
+            });
+          },
+          { maxAttempts: 15, interval: 1000 } // 最多等15秒,每秒检查一次
+        );
+      })
+      .then(success => {
+        if (success) {
+          logger.info('删除无效委托');
+          return deleteAllInvalidOrders(true);
+        } else {
+          logger.error('止盈设置验证超时,跳过清理步骤');
+          // 可选: 触发告警
+          return Promise.resolve();
+        }
+      })
+      .catch(error => {
+        logger.error(`交易流程失败: ${error.message}`);
+        errorLogger(error);
+        // 不中断程序,继续下一次定时任务
+      });
   })
 };

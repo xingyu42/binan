@@ -23,8 +23,12 @@ async function getPrice(req, res) {
 async function getErrorLog (req, res) {
   fs.readFile('./logs/error.log', (err, data) => {
     if (err) {
-      errorLogger(err)
-      process.exit(1)
+      errorLogger('读取错误日志文件失败', err);
+      return res.status(500).json({
+        error: '无法读取错误日志文件',
+        details: err.message,
+        code: err.code
+      });
     }
     res.send(data.toString())
   });
@@ -33,8 +37,12 @@ async function getErrorLog (req, res) {
 async function getAppLog (req, res) {
   fs.readFile('./logs/app.log', (err, data) => {
     if (err) {
-      errorLogger(err)
-      process.exit(1)
+      errorLogger('读取应用日志文件失败', err);
+      return res.status(500).json({
+        error: '无法读取应用日志文件',
+        details: err.message,
+        code: err.code
+      });
     }
     res.send(data.toString())
   });

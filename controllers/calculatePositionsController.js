@@ -4,7 +4,8 @@ const { getATRCompute } = require('../utils/mathUtils');
 const fs = require('fs');
 const { getData, getDataString } = require('../utils/dataService');
 const { logger, errorLogger } = require('../utils/Logger');
-const breakthroughCoefficient = 20 // 突破系数
+const { STRATEGY_CONFIG } = require('../core/constants');
+const breakthroughCoefficient = STRATEGY_CONFIG.HIGH_LOW_STRATEGY.LOOKBACK_PERIOD // 突破系数
 // const bc = 20 // 突破系数
 // const breakthrough_coefficient20 = 20 // 多少根k线内算第一次突破
 // 整体逻辑
@@ -469,7 +470,7 @@ function getPosition(atr, price, equity, direction, pricePrecision, leverageIng,
   // 在规则内选择最大的杠杆
   // pricePrecision 价格小数点位数(仅作为系统精度使用，注意同tickSize 区分)
   let quotaRatio = 0.1 // 额度比例
-  let stopMargin = 0.02 // 止损小于总体账户权益的2%
+  let stopMargin = STRATEGY_CONFIG.POSITION_SIZING.RISK_PER_TRADE // 止损小于总体账户权益的2%
   let leverage = 1 // 杠杆
   let ATR14 = 2 * atr // 使用ATR周期为14计算ATR
   let stopPrice = (direction > 0 ? (price - ATR14) : (price + ATR14)).toFixed(pricePrecision) // 止损价格
