@@ -3,7 +3,7 @@
  * 用于处理交易所价格精度、数量精度等相关计算
  */
 
-const { getAllExchangeInfo } = require('../controllers/calculatePositionsController');
+const { getAllExchangeInfo } = require('../services/binanceDataService');
 const { logger, errorLogger } = require('./Logger');
 
 // 交易对信息缓存
@@ -41,7 +41,7 @@ function clearExchangeInfoCache() {
 async function getTickSize(symbol) {
   const allExchange = await getExchangeInfo();
   const symbolInfo = allExchange.find(item => item.symbol === symbol);
-  
+
   if (symbolInfo) {
     const priceFilter = symbolInfo.filters.find(filter => filter.filterType === 'PRICE_FILTER');
     return priceFilter ? priceFilter.tickSize : '0.0001';
@@ -57,7 +57,7 @@ async function getTickSize(symbol) {
 async function getStepSize(symbol) {
   const allExchange = await getExchangeInfo();
   const symbolInfo = allExchange.find(item => item.symbol === symbol);
-  
+
   if (symbolInfo) {
     const lotSizeFilter = symbolInfo.filters.find(filter => filter.filterType === 'LOT_SIZE');
     return lotSizeFilter ? lotSizeFilter.stepSize : '0.001';
@@ -125,7 +125,7 @@ function formatQuantityByStepSize(quantity, stepSize) {
 async function getSymbolPrecisionInfo(symbol) {
   const allExchange = await getExchangeInfo();
   const symbolInfo = allExchange.find(item => item.symbol === symbol);
-  
+
   if (!symbolInfo) {
     return {
       tickSize: '0.0001',
@@ -138,13 +138,16 @@ async function getSymbolPrecisionInfo(symbol) {
       maxQty: '9000000'
     };
   }
-  
+
   const priceFilter = symbolInfo.filters.find(f => f.filterType === 'PRICE_FILTER');
-  const lotSizeFilter = symbolInfo.filters.find(f => f.filterType === 'LOT_SIZE');
-  
+  const lotSizeFilter = symbolInfo.filters.find(f => f.filterType === 'LOT_SIZE') ||
+    symbolInfo.filters.find(f => f.filterType === 'MARKET_LOT_SIZE');
+  const notionalFilter = symbolInfo.filters.find(f => f.filterType === 'MIN_NOTIONAL') ||
+    symbolInfo.filters.find(f => f.filterType === 'NOTIONAL');
+
   const tickSize = priceFilter?.tickSize || '0.0001';
   const stepSize = lotSizeFilter?.stepSize || '0.001';
-  
+
   return {
     tickSize,
     stepSize,
@@ -153,7 +156,9 @@ async function getSymbolPrecisionInfo(symbol) {
     minPrice: priceFilter?.minPrice || '0.0001',
     maxPrice: priceFilter?.maxPrice || '1000000',
     minQty: lotSizeFilter?.minQty || '0.001',
-    maxQty: lotSizeFilter?.maxQty || '9000000'
+    maxQty: lotSizeFilter?.maxQty || '9000000',
+    minNotional: notionalFilter?.notional || notionalFilter?.minNotional || '0',
+    maxNotional: notionalFilter?.maxNotional || null
   };
 }
 
@@ -191,12 +196,12 @@ async function safeFormatPrice(price, symbol) {
   try {
     const tickSize = await getTickSize(symbol);
     const formattedPrice = formatPriceByTickSize(price, tickSize);
-    
+
     if (!validatePricePrecision(formattedPrice, tickSize)) {
       errorLogger(`价格精度验证失败: ${symbol}, price: ${price}, formatted: ${formattedPrice}, tickSize: ${tickSize}`);
       return formatPriceByTickSize(price, tickSize); // 仍然返回格式化后的价格
     }
-    
+
     return formattedPrice;
   } catch (error) {
     errorLogger(`价格格式化失败: ${symbol}, price: ${price}`, error);
@@ -214,12 +219,12 @@ async function safeFormatQuantity(quantity, symbol) {
   try {
     const stepSize = await getStepSize(symbol);
     const formattedQuantity = formatQuantityByStepSize(quantity, stepSize);
-    
+
     if (!validateQuantityPrecision(formattedQuantity, stepSize)) {
       errorLogger(`数量精度验证失败: ${symbol}, quantity: ${quantity}, formatted: ${formattedQuantity}, stepSize: ${stepSize}`);
       return formatQuantityByStepSize(quantity, stepSize); // 仍然返回格式化后的数量
     }
-    
+
     return formattedQuantity;
   } catch (error) {
     errorLogger(`数量格式化失败: ${symbol}, quantity: ${quantity}`, error);
@@ -233,22 +238,22 @@ module.exports = {
   clearExchangeInfoCache,
   getTickSize,
   getStepSize,
-  
+
   // 精度计算
   getPricePrecisionFromTickSize,
   getQuantityPrecisionFromStepSize,
-  
+
   // 格式化功能
   formatPriceByTickSize,
   formatQuantityByStepSize,
-  
+
   // 综合信息
   getSymbolPrecisionInfo,
-  
+
   // 验证功能
   validatePricePrecision,
   validateQuantityPrecision,
-  
+
   // 安全格式化
   safeFormatPrice,
   safeFormatQuantity

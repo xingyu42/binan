@@ -220,7 +220,7 @@ const SYSTEM_LIMITS = {
     REQUESTS_PER_SECOND: 20,
     ORDER_RATE_LIMIT: 100,        // 每10秒
     WEIGHT_LIMIT: 1200,           // 每分钟权重限制
-    KLINE_REQUEST_INTERVAL: 1   // K线请求间隔(毫秒)
+    KLINE_REQUEST_INTERVAL: 150   // K线请求间隔(毫秒)
   },
 
   // 内存限制

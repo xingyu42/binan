@@ -1,37 +1,19 @@
 // 计算仓位控制器
 const { getKlines } = require('../services/binanceContractService');
 const { getATRCompute } = require('../utils/mathUtils');
-const fs = require('fs');
-const path = require('path');
-const dataRepository = require('../utils/OrderRepository');
-const { logger, errorLogger } = require('../utils/Logger');
+const { logger } = require('../utils/Logger');
 const { STRATEGY_CONFIG } = require('../core/constants');
 const breakthroughCoefficient = STRATEGY_CONFIG.HIGH_LOW_STRATEGY.LOOKBACK_PERIOD // 突破系数
+const {
+  getAllExchangeInfo: getCachedExchangeInfo,
+  getHistoryATRMap,
+  getTrendOscillationMap,
+  getWhitelistSymbols,
+  getBlacklistSymbols
+} = require('../services/binanceDataService');
+const { getSymbolPrecisionInfo, formatPriceByTickSize } = require('../utils/precisionUtils');
 // const bc = 20 // 突破系数
 // const breakthrough_coefficient20 = 20 // 多少根k线内算第一次突破
-
-// 黑白名单辅助函数
-function getWhitelist() {
-  const filePath = path.join(__dirname, '../data/whiteList.json');
-  if (!fs.existsSync(filePath)) return [];
-  try {
-    return JSON.parse(fs.readFileSync(filePath, 'utf-8'));
-  } catch (err) {
-    errorLogger('读取白名单失败:', err);
-    return [];
-  }
-}
-
-function getBlacklist() {
-  const filePath = path.join(__dirname, '../data/blackList.json');
-  if (!fs.existsSync(filePath)) return [];
-  try {
-    return JSON.parse(fs.readFileSync(filePath, 'utf-8'));
-  } catch (err) {
-    errorLogger('读取黑名单失败:', err);
-    return [];
-  }
-}
 
 // 整体逻辑
 
@@ -41,20 +23,6 @@ function getBlacklist() {
 // 如果符合进场再通过ATR均衡计算仓位做多做空设置止损
 // 符合条件后做止盈移动
 // 如果最近10跟k线低点大于开仓均价，则移动
-
-// 读取数据(使用SQLite)
-function readFile(callback) {
-  return new Promise(function (resolve, reject) {
-    try {
-      const data = dataRepository.get('data');
-      resolve(data ? JSON.stringify(data) : null);
-    } catch (err) {
-      reject(err);
-      errorLogger(err);
-      process.exit(1);
-    }
-  })
-}
 
 // 单品种K线初始化函数
 function klinesInit(symbol, data, quantityPrecision, pricePrecision, minOrderInfo = {}, inWhiteList) {
@@ -79,6 +47,7 @@ function klinesInit(symbol, data, quantityPrecision, pricePrecision, minOrderInf
     maxQty: minOrderInfo.maxQty, // 最大数量
     stepSize: minOrderInfo.stepSize, // 进步值
     notional: minOrderInfo.notional, // 最小名义价值
+    tickSize: minOrderInfo.tickSize || '0.0001', // 价格精度
     inWhiteList, // 是否在白名单里
     quantityPrecision, // 仓位精度
     pricePrecision, // 价格精度
@@ -184,12 +153,8 @@ function getHighAndLow(klines, symbol) {
 
 // 获取震荡和趋势平均值(使用SQLite)
 function getTrendOscillation() {
-  try {
-    const data = dataRepository.get('trendOscillation');
-    return data ? JSON.stringify(data) : null;
-  } catch (err) {
-    errorLogger(err);
-  }
+  const data = getTrendOscillationMap();
+  return data && Object.keys(data).length ? JSON.stringify(data) : null;
 }
 
 // 获取所有合约的K线数据并处理
@@ -197,44 +162,48 @@ function getAllKlines() {
   return new Promise(async function (resolve, reject) {
     logger.info('getAllKlines', '开始获取所有K线数据并处理')
     let data = []
-    let allExchangeInfo = await getAllExchangeInfo()
-    if (!allExchangeInfo) {
-      reject()
+    let allExchangeInfo = await getCachedExchangeInfo()
+    if (!Array.isArray(allExchangeInfo) || allExchangeInfo.length === 0) {
+      logger.warn('交易对基础数据为空，跳过本次K线拉取流程')
+      return resolve([])
     }
     let count = 0
-    let blackList = getBlacklist()
-    let whiteList = getWhitelist()
+    const blackList = getBlacklistSymbols()
+    const whiteList = getWhitelistSymbols()
     let symbols = allExchangeInfo.filter((item) => {
       return !blackList.includes(item.symbol) || whiteList.includes(item.symbol)
     })
-    function getMinOrderInfo(filters) {
-      // 获取最小下单信息
-      let minQty = 0
-      let maxQty = 0
-      let notional = 0
-      for (let i in filters) {
-        if (filters[i].filterType == 'MARKET_LOT_SIZE') {
-          // 市价订单数量限制
-          minQty = filters[i].minQty
-          maxQty = filters[i].maxQty
-          stepSize = filters[i].stepSize // 进步值
-        }
-        if (filters[i].filterType == 'MIN_NOTIONAL') {
-          // 最小名义价值
-          notional = filters[i].notional
-        }
-      }
-      return { minQty, notional , maxQty, stepSize}
-    }
     let allCount = symbols.length
-    async function getData(symbol, quantityPrecision, pricePrecision, filters) {
+    async function getData(symbolInfo) {
+      const symbol = symbolInfo.symbol
       let res = await getKlines(symbol, 42).catch((err) => {
         reject(err)
       })
       count++
       // 同时初始化
       if (!!res && !!res.data && res.data.length >= 22) {
-        data.push(klinesInit(symbol, res.data, quantityPrecision, pricePrecision, getMinOrderInfo(filters), whiteList.includes(symbol)))
+        let precisionInfo = await getSymbolPrecisionInfo(symbol).catch((error) => {
+          logger.warn(`${symbol} 获取精度信息失败,使用默认配置`, error)
+          return {
+            tickSize: '0.0001',
+            stepSize: '0.001',
+            pricePrecision: symbolInfo.pricePrecision,
+            quantityPrecision: symbolInfo.quantityPrecision,
+            minQty: '0.001',
+            maxQty: '9000000',
+            minNotional: '0'
+          }
+        })
+        const quantityPrecision = precisionInfo.quantityPrecision ?? symbolInfo.quantityPrecision
+        const pricePrecision = precisionInfo.pricePrecision ?? symbolInfo.pricePrecision
+        const minOrderInfo = {
+          minQty: precisionInfo.minQty ?? '0.001',
+          maxQty: precisionInfo.maxQty ?? '9000000',
+          stepSize: precisionInfo.stepSize ?? '0.001',
+          notional: precisionInfo.minNotional ?? '0',
+          tickSize: precisionInfo.tickSize ?? '0.0001'
+        }
+        data.push(klinesInit(symbol, res.data, quantityPrecision, pricePrecision, minOrderInfo, whiteList.includes(symbol)))
       }
       if (count === allCount) {
         logger.info('所有K线数据获取完毕')
@@ -242,8 +211,9 @@ function getAllKlines() {
       }
     }
     for (let i in symbols) {
-      if (!blackList.includes(symbols[i].symbol) || whiteList.includes(symbols[i].symbol)) {
-        getData(symbols[i].symbol, symbols[i].quantityPrecision, symbols[i].pricePrecision, symbols[i].filters)
+      const symbolInfo = symbols[i]
+      if (!blackList.includes(symbolInfo.symbol) || whiteList.includes(symbolInfo.symbol)) {
+        getData(symbolInfo)
       }
     }
   })
@@ -306,30 +276,9 @@ async function getPreparingOrders(equity, positionIng = [], allExchange, orderNu
     }
   })
   let ingSymbols = positionIng.map(item => item.symbol)
-  let data = weightSorting(primitiveData.filter((item) => signal(item, profitableSymbol)),ingSymbols) // 符合条件的下单
+  let data = weightSorting(primitiveData.filter((item) => signal(item, profitableSymbol)), ingSymbols) // 符合条件的下单
   logger.info('有信号的标的', data.map(item => item.symbol))
   data = data.slice(0, orderNumber < 1 ? 1 : orderNumber) //截取
-  function getTickSize(symbol) { // 获取精度
-    const symbolInfo = allExchange.find(item => item.symbol === symbol);
-    if (symbolInfo) {
-        const priceFilter = symbolInfo.filters.find(filter => filter.filterType === 'PRICE_FILTER')
-        return priceFilter ? priceFilter.tickSize : '0.0001'
-    }
-    return '0.0001'
-  }
-  function formatPriceByTickSize(price, tickSize) {
-    const tickSizeNum = parseFloat(tickSize)
-    const precision = getPricePrecisionFromTickSize(tickSize)
-    const adjustedPrice = Math.round(price / tickSizeNum) * tickSizeNum
-    return parseFloat(adjustedPrice.toFixed(precision))
-  }
-  function getPricePrecisionFromTickSize(tickSize) {
-    const tickSizeStr = tickSize.toString()
-    if (tickSizeStr.includes('.')) {
-        return tickSizeStr.split('.')[1].length
-    }
-    return 0
-  }
   for (let i in data) {
     // 符合下单条件
     let symbol = data[i].symbol
@@ -343,11 +292,11 @@ async function getPreparingOrders(equity, positionIng = [], allExchange, orderNu
       }
     }
     let direction = data[i].highPrice > data[i].highestPoint ? 1 : -1
-    let position = getPosition(data[i].ATR, data[i].currentPrice, equity, direction, data[i].pricePrecision, positionLeverage,ingSymbols.includes(data[i].symbol)?positionIngData:false)
-    logger.info('格式化stopPrice', data[i].symbol, position.stopPrice, formatPriceByTickSize(position.stopPrice, getTickSize(data[i].symbol)))
+    let position = getPosition(data[i].ATR, data[i].currentPrice, equity, direction, data[i].pricePrecision, positionLeverage, ingSymbols.includes(data[i].symbol) ? positionIngData : false)
+    logger.info('格式化stopPrice', data[i].symbol, position.stopPrice, formatPriceByTickSize(position.stopPrice, data[i].tickSize || '0.0001'))
     preparingOrders.push({
       ...position,
-      stopPrice: formatPriceByTickSize(position.stopPrice, getTickSize(data[i].symbol)),
+      stopPrice: formatPriceByTickSize(position.stopPrice, data[i].tickSize || '0.0001'),
       amplitude: getAmplitude(data[i]),
       ATR: data[i].ATR,
       inWhiteList: data[i].inWhiteList,
@@ -355,6 +304,7 @@ async function getPreparingOrders(equity, positionIng = [], allExchange, orderNu
       maxQty: data[i].maxQty, // 最大下单数量
       stepSize: data[i].stepSize, // 进步值
       notional: data[i].notional, // 最小下单名义价值
+      tickSize: data[i].tickSize, // 价格精度
       closePrice: data[i].closePrice,
       quantityPrecision: data[i].quantityPrecision,
       isOne: !ingSymbols.includes(data[i].symbol), // 是开仓还是加仓
@@ -369,21 +319,12 @@ async function getPreparingOrders(equity, positionIng = [], allExchange, orderNu
 }
 
 // 读取历史ATR使用同步(使用SQLite)
-function getHistoryATR() {
-  try {
-    const data = dataRepository.get('ATR');
-    return data ? JSON.stringify(data) : null;
-  } catch (err) {
-    errorLogger(err);
-  }
-}
-
 // 根据已经测量的ATR计算精确ATR
 function getATR(data, cycle, symbol) {
   function round6(x) {
     return Math.round(x * 1000000) / 1000000
   }
-  let historyATR = JSON.parse(getHistoryATR() || '{}')
+  let historyATR = getHistoryATRMap() || {}
   let kline = data[data.length - 1]
   let kline_1 = data[data.length - 2]
   let atr = historyATR[symbol] || 0
@@ -484,7 +425,7 @@ function getPosition(atr, price, equity, direction, pricePrecision, leverageIng,
   let ATR14 = 2 * atr // 使用ATR周期为14计算ATR
   let stopPrice = (direction > 0 ? (price - ATR14) : (price + ATR14)).toFixed(pricePrecision) // 止损价格
   if (positionIngData) {
-    if(direction > 0){
+    if (direction > 0) {
       stopPrice = stopPrice > positionIngData.entryPrice ? stopPrice : positionIngData.entryPrice
       // 做多加仓止损不能小于当前仓位权益
     } else {
@@ -511,12 +452,6 @@ function getPosition(atr, price, equity, direction, pricePrecision, leverageIng,
       stopPrice // 止损价格
     }
   }
-}
-
-// 从数据文件中获取合约交易对
-async function getAllExchangeInfo() {
-  let data = await readFile()
-  return JSON.parse(data)
 }
 
 // 获取单个交易对计算指标
@@ -558,7 +493,6 @@ async function getAverageAmplitude(symbol) {
 
 module.exports = {
   getPreparingOrders,
-  getAllExchangeInfo,
   getHighAndLow,
   klinesInit,
   getOneIndex,
