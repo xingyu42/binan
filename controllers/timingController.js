@@ -3,11 +3,31 @@ const schedule = require('node-schedule');
 const { getExchangeInfo, contractOrder, getAccountData, getKlines, setStopPrice, getOpenOrders, deleteOrder } = require('../services/binanceContractService');
 // const { exec } = require('child_process');
 const fs = require('fs');
+const path = require('path');
 const { getPreparingOrders, getAllExchangeInfo, getHighAndLow, klinesInit, getATR, getOneIndex } = require('./calculatePositionsController');
-const { getDataString, setData, setDataAsync } = require('../utils/dataService');
+const dataRepository = require('../utils/OrderRepository');
 const { logger, errorLogger } = require('../utils/Logger');
 const { getTickSize, formatPriceByTickSize } = require('../utils/precisionUtils');
 const utils = require('../utils/util');
+
+// 黑白名单辅助函数
+function setWhitelist(list) {
+  const filePath = path.join(__dirname, '../data/whiteList.json');
+  const dir = path.dirname(filePath);
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
+  }
+  fs.writeFileSync(filePath, JSON.stringify(list, null, 2), 'utf-8');
+}
+
+function setBlacklist(list) {
+  const filePath = path.join(__dirname, '../data/blackList.json');
+  const dir = path.dirname(filePath);
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
+  }
+  fs.writeFileSync(filePath, JSON.stringify(list, null, 2), 'utf-8');
+}
 
 /**
  * 轮询等待直到条件满足
@@ -37,25 +57,6 @@ async function waitForCondition(checkFn, options = {}) {
   return false;
 }
 
-// 读取数据(兼容旧接口,现在使用SQLite)
-function readFile(url){
-  return new Promise(function (resolve, reject) {
-    try {
-      const data = getDataString(url);
-      resolve(data);
-    } catch (err) {
-      reject(err);
-      errorLogger(err);
-      process.exit(1);
-    }
-  })
-}
-
-// 写入数据(兼容旧接口,现在使用SQLite)
-function writeFile(url, jsonString){
-  return setDataAsync(url, jsonString);
-}
-
 // 更新所有交易对的ATR和波动率
 async function updateAllATR(callback) {
   let indexObject = {}
@@ -81,11 +82,11 @@ async function updateAllATR(callback) {
 
       // 写入SQLite数据库
       try {
-        setData('./data/ATR.json', ATRObj);
+        dataRepository.set('ATR', ATRObj);
         logger.info('更新ATR成功');
-        setData('./data/trendOscillation.json', TOJ);
+        dataRepository.set('trendOscillation', TOJ);
         logger.info('更新金叉死叉数成功');
-        setData('./data/volatility.json', volObj);
+        dataRepository.set('volatility', volObj);
         logger.info('更新波动率成功');
         callback && callback(true);
       } catch (err) {
@@ -104,11 +105,11 @@ async function updateAllATR(callback) {
 async function setUpdateEquity(){
   let res = await getAccountData()
   let equity = Number(res.totalMarginBalance)
-  let data = JSON.parse(await readFile('./data/equity.json'))
+  let data = dataRepository.get('equity') || { equity: 0 }
   if (equity > Number(data.equity)){
     data.equity = equity
   }
-  await writeFile('./data/equity.json', JSON.stringify(data))
+  dataRepository.set('equity', data)
   logger.info('账号历史最大权益更新成功')
   return true
 }
@@ -119,7 +120,7 @@ async function updateAllExchangeInfo(){
   if (!res) { return logger.info('更新交易对失败') }
   let symbols = res.data.symbols
   let data = symbols.filter(item => item.symbol.includes("USDT")).filter(item => item.status === 'TRADING')
-  await writeFile('./data/data.json', JSON.stringify(data))
+  dataRepository.set('data', data)
   logger.info('更新交易对成功')
   setUpdateEquity()
   updateAllATR()
@@ -142,7 +143,7 @@ async function getEquityAmount () {
   let availableBalance = Number(res.availableBalance) // 账户余额
   let totalMarginBalance = Number(res.totalMarginBalance)/2 // 对半账户权益
   let equity = totalMarginBalance > availableBalance ? availableBalance : totalMarginBalance
-  let equityMaxHistory = JSON.parse(await readFile('./data/equity.json'))
+  let equityMaxHistory = dataRepository.get('equity') || { equity: 0 }
   let withdrawalAmplitude = 0 // 回撤幅度
   if (equityMaxHistory.equity > res.totalMarginBalance){
     withdrawalAmplitude = (equityMaxHistory.equity - res.totalMarginBalance)/equityMaxHistory.equity
@@ -417,17 +418,17 @@ async function initData () {
   const whiteListPath = path.join(process.cwd(), 'data', 'whiteList.json');
 
   if (!fs.existsSync(blackListPath)) {
-    setData('./data/blackList.json', ['USDCUSDT']);
+    setBlacklist(['USDCUSDT']);
     logger.info('初始化黑名单');
   }
   if (!fs.existsSync(whiteListPath)) {
-    setData('./data/whiteList.json', ['BTCUSDT']);
+    setWhitelist(['BTCUSDT']);
     logger.info('初始化白名单');
   }
   if (!dataRepository.exists('equity')) {
     let res = await getAccountData();
     let equity = Number(res.totalMarginBalance);
-    setData('./data/equity.json', { equity });
+    dataRepository.set('equity', { equity });
   }
 
   updateAllExchangeInfo();

@@ -2,12 +2,37 @@
 const { getKlines } = require('../services/binanceContractService');
 const { getATRCompute } = require('../utils/mathUtils');
 const fs = require('fs');
-const { getData, getDataString } = require('../utils/dataService');
+const path = require('path');
+const dataRepository = require('../utils/OrderRepository');
 const { logger, errorLogger } = require('../utils/Logger');
 const { STRATEGY_CONFIG } = require('../core/constants');
 const breakthroughCoefficient = STRATEGY_CONFIG.HIGH_LOW_STRATEGY.LOOKBACK_PERIOD // 突破系数
 // const bc = 20 // 突破系数
 // const breakthrough_coefficient20 = 20 // 多少根k线内算第一次突破
+
+// 黑白名单辅助函数
+function getWhitelist() {
+  const filePath = path.join(__dirname, '../data/whiteList.json');
+  if (!fs.existsSync(filePath)) return [];
+  try {
+    return JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+  } catch (err) {
+    errorLogger('读取白名单失败:', err);
+    return [];
+  }
+}
+
+function getBlacklist() {
+  const filePath = path.join(__dirname, '../data/blackList.json');
+  if (!fs.existsSync(filePath)) return [];
+  try {
+    return JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+  } catch (err) {
+    errorLogger('读取黑名单失败:', err);
+    return [];
+  }
+}
+
 // 整体逻辑
 
 // 在每天的19点和早上的7点进行时间校准合约交易对的数据更新
@@ -21,8 +46,8 @@ const breakthroughCoefficient = STRATEGY_CONFIG.HIGH_LOW_STRATEGY.LOOKBACK_PERIO
 function readFile(callback) {
   return new Promise(function (resolve, reject) {
     try {
-      const data = getDataString('./data/data.json');
-      resolve(data);
+      const data = dataRepository.get('data');
+      resolve(data ? JSON.stringify(data) : null);
     } catch (err) {
       reject(err);
       errorLogger(err);
@@ -160,25 +185,8 @@ function getHighAndLow(klines, symbol) {
 // 获取震荡和趋势平均值(使用SQLite)
 function getTrendOscillation() {
   try {
-    return getDataString('./data/trendOscillation.json');
-  } catch (err) {
-    errorLogger(err);
-  }
-}
-
-// 获取白名单(使用SQLite)
-function getWhiteList() {
-  try {
-    return getDataString('./data/whiteList.json');
-  } catch (err) {
-    errorLogger(err);
-  }
-}
-
-// 获取黑名单(使用SQLite)
-function getBlackList() {
-  try {
-    return getDataString('./data/blackList.json');
+    const data = dataRepository.get('trendOscillation');
+    return data ? JSON.stringify(data) : null;
   } catch (err) {
     errorLogger(err);
   }
@@ -194,8 +202,8 @@ function getAllKlines() {
       reject()
     }
     let count = 0
-    let blackList = JSON.parse(getBlackList() || '[]')
-    let whiteList = JSON.parse(getWhiteList() || '[]')
+    let blackList = getBlacklist()
+    let whiteList = getWhitelist()
     let symbols = allExchangeInfo.filter((item) => {
       return !blackList.includes(item.symbol) || whiteList.includes(item.symbol)
     })
@@ -363,7 +371,8 @@ async function getPreparingOrders(equity, positionIng = [], allExchange, orderNu
 // 读取历史ATR使用同步(使用SQLite)
 function getHistoryATR() {
   try {
-    return getDataString('./data/ATR.json');
+    const data = dataRepository.get('ATR');
+    return data ? JSON.stringify(data) : null;
   } catch (err) {
     errorLogger(err);
   }

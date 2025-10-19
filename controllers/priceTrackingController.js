@@ -4,7 +4,7 @@ const { klinesInit } = require('./calculatePositionsController');
 const { safeFormatPrice } = require('../utils/precisionUtils');
 const { getATRCompute } = require('../utils/mathUtils');
 const { API_CONFIG, MONITOR_CONFIG } = require('../core/constants');
-const { getData } = require('../utils/dataService');
+const dataRepository = require('../utils/OrderRepository');
 const { logger, errorLogger } = require('../utils/Logger');
 const WebSocket = require('ws');
 const { SocksProxyAgent } = require('socks-proxy-agent');
@@ -75,7 +75,7 @@ let symbolHighLowCache = {}
 // 获取ATR数据(使用SQLite)
 function getATRData() {
   try {
-    return getData('./data/ATR.json') || {};
+    return dataRepository.get('ATR') || {};
   } catch (error) {
     errorLogger('读取ATR数据失败:', error);
     return {};
