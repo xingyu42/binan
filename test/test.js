@@ -1,5 +1,6 @@
 const { getPositionRisk, getAccountData, getPositionSideDual, getListenKey,getKlines,getUserTrades } = require('../services/binanceContractService');
-const { getPreparingOrders, getAllExchangeInfo, getHighAndLow, klinesInit, getATR, getOneIndex } = require('../controllers/calculatePositionsController');
+const { getPreparingOrders, getHighAndLow, klinesInit, getATR, getOneIndex } = require('../controllers/calculatePositionsController');
+const { getAllExchangeInfo } = require('../services/binanceDataService');
 const { logger, errorLogger } = require('../utils/Logger');
 // 获取账户头寸
 async function getAccountPosition() {
