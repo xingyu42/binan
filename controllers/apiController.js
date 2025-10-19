@@ -1,6 +1,6 @@
-const { getPositionRisk, getAccountData, getPositionSideDual } = require('../services/binanceContractService');
-const fs = require('fs');
-const { errorLogger } = require('../utils/Logger');
+import { getPositionRisk, getAccountData, getPositionSideDual } from '../services/binanceContractService.js';
+import fs from 'node:fs';
+import { errorLogger } from '../utils/Logger.js';
 
 async function getAccountPosition() {
   let res = await getAccountData()
@@ -68,7 +68,7 @@ async function getPositions(req, res) {
   }
 }
 
-module.exports = {
+export {
   getPrice,
   getErrorLog,
   getPositions,

@@ -267,7 +267,7 @@ function parseTimeString(timeString, format = 'YYYY-MM-DD HH:mm:ss') {
 
 // ==================== 导出所有函数 ====================
 
-module.exports = {
+export {
   // 时间格式化
   formatTimestamp,
   getCurrentTimestamp,

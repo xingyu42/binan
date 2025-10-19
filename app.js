@@ -1,15 +1,19 @@
-require('dotenv').config();
-const express = require('express')
-const apiRoutes = require('./routes/apiRoutes')
-const path = require('path')
-const { APP_CONFIG } = require('./core/constants')
-const app = express()
-const port = process.env.NODE_ENV === 'development' ? APP_CONFIG.PORT.DEVELOPMENT : APP_CONFIG.PORT.PRODUCTION
-const timing = require('./controllers/timingController')
-const tracking = require('./controllers/priceTrackingController')
-const test =  require('./test/test')
-const dataRepository = require('./utils/OrderRepository')
-const { logger, errorLogger } = require('./utils/Logger')
+import 'dotenv/config';
+import express from 'express';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+import apiRoutes from './routes/apiRoutes.js';
+import { APP_CONFIG } from './core/constants.js';
+import timing from './controllers/timingController.js';
+import tracking from './controllers/priceTrackingController.js';
+import testRunner from './test/test.js';
+import dataRepository from './utils/OrderRepository.js';
+import { logger, errorLogger } from './utils/Logger.js';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const app = express();
+const port = process.env.NODE_ENV === 'development' ? APP_CONFIG.PORT.DEVELOPMENT : APP_CONFIG.PORT.PRODUCTION;
 
 // 初始化SQLite数据库
 try {
@@ -41,7 +45,7 @@ app.listen(port, () => {
 timing()
 
 // 测试用例
-// test()
+// testRunner()
 
 // 实时跟踪
 // tracking()

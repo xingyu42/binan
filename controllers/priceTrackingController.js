@@ -1,16 +1,23 @@
 // 价格跟踪控制器
-const { getAccountData, getKlines, setStopPrice, getListenKey, getOneOpenOrders } = require('../services/binanceContractService');
-const { klinesInit } = require('./calculatePositionsController');
-const { safeFormatPrice } = require('../utils/precisionUtils');
-const { getATRCompute } = require('../utils/mathUtils');
-const { API_CONFIG, MONITOR_CONFIG } = require('../core/constants');
-const dataRepository = require('../utils/OrderRepository');
-const { logger, errorLogger } = require('../utils/Logger');
-const WebSocket = require('ws');
-const { SocksProxyAgent } = require('socks-proxy-agent');
+import {
+  getAccountData,
+  getKlines,
+  setStopPrice,
+  getListenKey,
+  getOneOpenOrders
+} from '../services/binanceContractService.js';
+import { klinesInit } from './calculatePositionsController.js';
+import { safeFormatPrice } from '../utils/precisionUtils.js';
+import { getATRCompute } from '../utils/mathUtils.js';
+import { API_CONFIG, MONITOR_CONFIG } from '../core/constants.js';
+import dataRepository from '../utils/OrderRepository.js';
+import { logger, errorLogger } from '../utils/Logger.js';
+import WebSocket from 'ws';
+import { SocksProxyAgent } from 'socks-proxy-agent';
+import schedule from 'node-schedule';
+import fs from 'node:fs';
+
 const agent = new SocksProxyAgent(API_CONFIG.SOCKS_PROXY);
-const schedule = require('node-schedule');
-const fs = require('fs');
 
 
 // 获取账户权益
@@ -277,14 +284,12 @@ async function setNewStopPrice(symbol, stopPrice, direction) {
   logger.info(`${symbol}跟踪设置止盈成功`)
 }
 
-module.exports = async function () {
+export default async function priceTrackingController() {
   // startTracking()
   positionMonitor()
 }
 
-
-
-
+export { positionMonitor };
 
 
 

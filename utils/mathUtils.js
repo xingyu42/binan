@@ -371,7 +371,7 @@ function compoundGrowthRate(beginValue, endValue, periods) {
 
 // ==================== 导出所有函数 ====================
 
-module.exports = {
+export {
   // 基础数学函数
   getPrecision,
   truncateDecimal,

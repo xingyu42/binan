@@ -2,7 +2,7 @@
  * 重试监控工具
  * 监控和统计重试情况，帮助分析网络问题
  */
-const { logger, errorLogger } = require('./Logger');
+import { logger, errorLogger } from './Logger.js';
 
 class RetryMonitor {
   constructor() {
@@ -245,7 +245,4 @@ class RetryMonitor {
 // 创建全局实例
 const retryMonitor = new RetryMonitor();
 
-module.exports = {
-  RetryMonitor,
-  retryMonitor
-};
+export { RetryMonitor, retryMonitor };

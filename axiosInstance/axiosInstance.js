@@ -1,11 +1,17 @@
-const axios = require('axios')
-const { apiSocks, apiKey, apiDomainContract, apiDomain1 } = require('../config/config.js')
-const { SocksProxyAgent } = require('socks-proxy-agent')
-const { createHmac } = require('crypto')
-const { apiSecret } = require('../config/config')
-const JSONbig = require('json-bigint')
-const { SYSTEM_LIMITS, API_CONFIG } = require('../core/constants')
-const { logger, errorLogger } = require('../utils/Logger')
+import axios from 'axios'
+import { SocksProxyAgent } from 'socks-proxy-agent'
+import { createHmac } from 'node:crypto'
+import JSONbig from 'json-bigint'
+
+import {
+  apiSocks,
+  apiKey,
+  apiDomainContract,
+  apiDomain1,
+  apiSecret
+} from '../config/config.js'
+import { SYSTEM_LIMITS, API_CONFIG } from '../core/constants.js'
+import { logger, errorLogger } from '../utils/Logger.js'
 
 // 创建代理实例
 let httpsAgent = null
@@ -357,8 +363,4 @@ async function healthCheck() {
 }
 
 // 导出
-module.exports = {
-  contractAxios,
-  spotsAxios,
-  healthCheck
-}
+export { contractAxios, spotsAxios, healthCheck }

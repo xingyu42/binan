@@ -4,7 +4,7 @@
  */
 
 // ==================== API 配置 ====================
-const API_CONFIG = {
+export const API_CONFIG = {
   // Binance 现货 API 域名
   SPOT_DOMAINS: {
     PRIMARY: 'https://api.binance.com',
@@ -46,7 +46,7 @@ const API_CONFIG = {
 };
 
 // ==================== 应用配置 ====================
-const APP_CONFIG = {
+export const APP_CONFIG = {
   // 服务器端口
   PORT: {
     DEVELOPMENT: 3000,
@@ -71,7 +71,7 @@ const APP_CONFIG = {
 };
 
 // ==================== 交易配置 ====================
-const TRADING_CONFIG = {
+export const TRADING_CONFIG = {
   // K线周期
   KLINE_INTERVAL: '1d',
 
@@ -116,7 +116,7 @@ const TRADING_CONFIG = {
 };
 
 // ==================== 监控配置 ====================
-const MONITOR_CONFIG = {
+export const MONITOR_CONFIG = {
   // 仓位监控
   POSITION_MONITOR: {
     CHECK_INTERVAL: '0/30 * * * * *', // 30秒检查一次
@@ -150,7 +150,7 @@ const MONITOR_CONFIG = {
 };
 
 // ==================== 策略配置 ====================
-const STRATEGY_CONFIG = {
+export const STRATEGY_CONFIG = {
   // ATR 止损策略
   ATR_STOP_LOSS: {
     MULTIPLIER: 2.0,
@@ -183,7 +183,7 @@ const STRATEGY_CONFIG = {
 };
 
 // ==================== 数据配置 ====================
-const DATA_CONFIG = {
+export const DATA_CONFIG = {
   // 文件路径
   FILE_PATHS: {
     ATR_DATA: './data/ATR.json',
@@ -213,7 +213,7 @@ const DATA_CONFIG = {
 };
 
 // ==================== 系统限制 ====================
-const SYSTEM_LIMITS = {
+export const SYSTEM_LIMITS = {
   // API 限制
   API_LIMITS: {
     REQUESTS_PER_MINUTE: 1200,
@@ -239,7 +239,7 @@ const SYSTEM_LIMITS = {
 };
 
 // ==================== 错误代码 ====================
-const ERROR_CODES = {
+export const ERROR_CODES = {
   // API 错误
   API_ERROR: {
     INVALID_SIGNATURE: -1022,
@@ -260,7 +260,7 @@ const ERROR_CODES = {
 };
 
 // ==================== 消息模板 ====================
-const MESSAGE_TEMPLATES = {
+export const MESSAGE_TEMPLATES = {
   // 日志消息
   LOG_MESSAGES: {
     SYSTEM_START: '系统启动成功',
@@ -281,7 +281,7 @@ const MESSAGE_TEMPLATES = {
 };
 
 // ==================== 时区配置 ====================
-const TIMEZONE_CONFIG = {
+export const TIMEZONE_CONFIG = {
   // 获取时区偏移
   getTimezoneOffset() {
     const date = new Date();
@@ -299,15 +299,3 @@ const TIMEZONE_CONFIG = {
   }
 };
 
-module.exports = {
-  API_CONFIG,
-  APP_CONFIG,
-  TRADING_CONFIG,
-  MONITOR_CONFIG,
-  STRATEGY_CONFIG,
-  DATA_CONFIG,
-  SYSTEM_LIMITS,
-  ERROR_CODES,
-  MESSAGE_TEMPLATES,
-  TIMEZONE_CONFIG
-};

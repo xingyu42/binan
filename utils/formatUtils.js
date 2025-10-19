@@ -391,7 +391,7 @@ function escapeHtml(text) {
 
 // ==================== 导出所有函数 ====================
 
-module.exports = {
+export {
   // 数字格式化
   formatNumber,
   formatPrice,

@@ -1,7 +1,20 @@
-const { getPositionRisk, getAccountData, getPositionSideDual, getListenKey,getKlines,getUserTrades } = require('../services/binanceContractService');
-const { getPreparingOrders, getHighAndLow, klinesInit, getATR, getOneIndex } = require('../controllers/calculatePositionsController');
-const { getAllExchangeInfo } = require('../services/binanceDataService');
-const { logger, errorLogger } = require('../utils/Logger');
+import {
+  getPositionRisk,
+  getAccountData,
+  getPositionSideDual,
+  getListenKey,
+  getKlines,
+  getUserTrades
+} from '../services/binanceContractService.js';
+import {
+  getPreparingOrders,
+  getHighAndLow,
+  klinesInit,
+  getATR,
+  getOneIndex
+} from '../controllers/calculatePositionsController.js';
+import { getAllExchangeInfo } from '../services/binanceDataService.js';
+import { logger, errorLogger } from '../utils/Logger.js';
 // 获取账户头寸
 async function getAccountPosition() {
   let res = await getAccountData()
@@ -46,7 +59,7 @@ async function setTakeProfit () {
   }
   return takeProfitList
 }
-module.exports = async function () {
+export default async function runTests() {
   // console.log('合约属性', await getPositionRisk('KEYUSDT'));
   // console.log('当前仓位', await getAccountPosition());
   // console.log(await setTakeProfit())

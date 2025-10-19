@@ -1,17 +1,23 @@
-const express = require('express');
-const apiController = require('../controllers/apiController');
+import { Router } from 'express';
+import {
+  getPrice,
+  getAppLog,
+  getErrorLog,
+  getUsers,
+  getPositions
+} from '../controllers/apiController.js';
 
-const router = express.Router();
+const router = Router();
 
-router.get('/price', apiController.getPrice);
-router.get('/appLog', apiController.getAppLog);
-router.get('/errorLog', apiController.getErrorLog);
-router.get('/users',  apiController.getUsers);
-router.get('/positions',  apiController.getPositions);
+router.get('/price', getPrice);
+router.get('/appLog', getAppLog);
+router.get('/errorLog', getErrorLog);
+router.get('/users', getUsers);
+router.get('/positions', getPositions);
 
 router.get('*', (req, res) => {
   // 处理 其他的api 请求
   res.send('Hello from Node.js API');
 });
 
-module.exports = router;
+export default router;

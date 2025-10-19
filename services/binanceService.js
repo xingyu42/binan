@@ -1,6 +1,6 @@
 // 现货交易
-const { spotsAxios } = require('../axiosInstance/axiosInstance')
-const { logger, errorLogger } = require('../utils/Logger')
+import { spotsAxios } from '../axiosInstance/axiosInstance.js'
+import { errorLogger } from '../utils/Logger.js'
 
 // 发起请求获取K线数据
 async function getKlines (symbol,limit) {
@@ -40,7 +40,7 @@ async function getUserData() {
 }
 
 
-module.exports = {
+export {
   getPrice,
   getKlines,
   getUserData

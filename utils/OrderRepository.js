@@ -1,6 +1,7 @@
-const Database = require('better-sqlite3');
-const path = require('path');
-const fs = require('fs');
+import Database from 'better-sqlite3';
+import path from 'node:path';
+import fs from 'node:fs';
+import { fileURLToPath } from 'node:url';
 
 /**
  * 数据Repository (单例)
@@ -10,6 +11,7 @@ const fs = require('fs');
 class OrderRepository {
   constructor() {
     this.db = null;
+    const __dirname = path.dirname(fileURLToPath(import.meta.url));
     this.dbPath = path.join(__dirname, '../data/app_data.db');
   }
 
@@ -174,4 +176,5 @@ class OrderRepository {
 
 // 导出单例
 const orderRepository = new OrderRepository();
-module.exports = orderRepository;
+export { OrderRepository, orderRepository };
+export default orderRepository;

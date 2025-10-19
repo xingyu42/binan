@@ -1,6 +1,6 @@
 // 合约交易
-const { contractAxios } = require('../axiosInstance/axiosInstance')
-const { logger, errorLogger } = require('../utils/Logger')
+import { contractAxios } from '../axiosInstance/axiosInstance.js'
+import { logger, errorLogger } from '../utils/Logger.js'
 // 获取服务器时间
 async function getServiceTime() {
   const res = await contractAxios({
@@ -283,8 +283,7 @@ async function deleteListenKey() {
   return res && res.data
 }
 
-
-module.exports = {
+export {
   getServiceTime,
   getKlines,
   setStopPrice,

@@ -3,8 +3,8 @@
  * 用于处理交易所价格精度、数量精度等相关计算
  */
 
-const { getAllExchangeInfo } = require('../services/binanceDataService');
-const { logger, errorLogger } = require('./Logger');
+import { getAllExchangeInfo } from '../services/binanceDataService.js';
+import { logger, errorLogger } from './Logger.js';
 
 // 交易对信息缓存
 let exchangeInfoCache = null;
@@ -232,7 +232,7 @@ async function safeFormatQuantity(quantity, symbol) {
   }
 }
 
-module.exports = {
+export {
   // 基础功能
   getExchangeInfo,
   clearExchangeInfoCache,

@@ -1,19 +1,33 @@
 // 定时控制器
-const schedule = require('node-schedule');
-const { getExchangeInfo, contractOrder, getAccountData, getKlines, setStopPrice, getOpenOrders, deleteOrder } = require('../services/binanceContractService');
+import schedule from 'node-schedule';
+import {
+  getExchangeInfo,
+  contractOrder,
+  getAccountData,
+  getKlines,
+  setStopPrice,
+  getOpenOrders,
+  deleteOrder
+} from '../services/binanceContractService.js';
 // const { exec } = require('child_process');
-const { getPreparingOrders, getHighAndLow, klinesInit, getATR, getOneIndex } = require('./calculatePositionsController');
-const dataRepository = require('../utils/OrderRepository');
-const { logger, errorLogger } = require('../utils/Logger');
-const { getTickSize, formatPriceByTickSize } = require('../utils/precisionUtils');
-const utils = require('../utils/util');
-const {
+import {
+  getPreparingOrders,
+  getHighAndLow,
+  klinesInit,
+  getATR,
+  getOneIndex
+} from './calculatePositionsController.js';
+import dataRepository from '../utils/OrderRepository.js';
+import { logger, errorLogger } from '../utils/Logger.js';
+import { getTickSize, formatPriceByTickSize } from '../utils/precisionUtils.js';
+import * as utils from '../utils/util.js';
+import {
   getAllExchangeInfo,
   getWhitelistSymbols,
   getBlacklistSymbols,
   setWhitelistSymbols,
   setBlacklistSymbols
-} = require('../services/binanceDataService');
+} from '../services/binanceDataService.js';
 
 /**
  * 轮询等待直到条件满足
@@ -388,10 +402,8 @@ async function deleteAllInvalidOrders(isDeL) {
 }
 
 
-// 初始化数据(使用SQLite,无需检查JSON文件)
+// 初始化数据
 async function initData() {
-  const dataRepository = require('../utils/OrderRepository');
-
   // 初始化SQLite数据库
   if (!dataRepository.db) {
     dataRepository.initialize();
@@ -425,7 +437,7 @@ async function initData() {
   updateAllExchangeInfo();
 }
 
-module.exports = async function () {
+export default async function timingController() {
   logger.info('定时交易策略开始')
   // test()
   initData()

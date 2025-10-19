@@ -13,15 +13,30 @@
  */
 
 // 加载环境变量
-require('dotenv').config();
+import 'dotenv/config';
+import { pathToFileURL } from 'node:url';
 
-const { getExchangeInfo, getAccountData, getKlines, setStopPrice, getOpenOrders, deleteOrder, contractOrder } = require('../services/binanceContractService');
-const { getPreparingOrders, getHighAndLow, klinesInit, getATR, getOneIndex } = require('../controllers/calculatePositionsController');
-const { getAllExchangeInfo } = require('../services/binanceDataService');
-const dataRepository = require('../utils/OrderRepository');
-const { logger, errorLogger } = require('../utils/Logger');
-const { getTickSize, formatPriceByTickSize } = require('../utils/precisionUtils');
-const utils = require('../utils/util');
+import {
+  getExchangeInfo,
+  getAccountData,
+  getKlines,
+  setStopPrice,
+  getOpenOrders,
+  deleteOrder,
+  contractOrder
+} from '../services/binanceContractService.js';
+import {
+  getPreparingOrders,
+  getHighAndLow,
+  klinesInit,
+  getATR,
+  getOneIndex
+} from '../controllers/calculatePositionsController.js';
+import { getAllExchangeInfo } from '../services/binanceDataService.js';
+import dataRepository from '../utils/OrderRepository.js';
+import { logger, errorLogger } from '../utils/Logger.js';
+import { getTickSize, formatPriceByTickSize } from '../utils/precisionUtils.js';
+import * as utils from '../utils/util.js';
 
 // ==================== 轮询等待工具函数 ====================
 async function waitForCondition(checkFn, options = {}) {
@@ -476,7 +491,6 @@ async function main() {
   }
 
   // 初始化 SQLite 数据库
-  const dataRepository = require('../utils/OrderRepository');
   try {
     if (!dataRepository.db) {
       dataRepository.initialize();
@@ -531,11 +545,11 @@ async function main() {
 }
 
 // 运行主函数
-if (require.main === module) {
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   main();
 }
 
-module.exports = {
+export {
   order,
   setTakeProfit,
   updateAllExchangeInfo,

@@ -1,17 +1,17 @@
 // 计算仓位控制器
-const { getKlines } = require('../services/binanceContractService');
-const { getATRCompute } = require('../utils/mathUtils');
-const { logger } = require('../utils/Logger');
-const { STRATEGY_CONFIG } = require('../core/constants');
+import { getKlines } from '../services/binanceContractService.js';
+import { getATRCompute } from '../utils/mathUtils.js';
+import { logger } from '../utils/Logger.js';
+import { STRATEGY_CONFIG } from '../core/constants.js';
 const breakthroughCoefficient = STRATEGY_CONFIG.HIGH_LOW_STRATEGY.LOOKBACK_PERIOD // 突破系数
-const {
-  getAllExchangeInfo: getCachedExchangeInfo,
+import {
+  getAllExchangeInfo as getCachedExchangeInfo,
   getHistoryATRMap,
   getTrendOscillationMap,
   getWhitelistSymbols,
   getBlacklistSymbols
-} = require('../services/binanceDataService');
-const { getSymbolPrecisionInfo, formatPriceByTickSize } = require('../utils/precisionUtils');
+} from '../services/binanceDataService.js';
+import { getSymbolPrecisionInfo, formatPriceByTickSize } from '../utils/precisionUtils.js';
 // const bc = 20 // 突破系数
 // const breakthrough_coefficient20 = 20 // 多少根k线内算第一次突破
 
@@ -491,7 +491,7 @@ async function getAverageAmplitude(symbol) {
   return trendOscillationCompute(klines)
 }
 
-module.exports = {
+export {
   getPreparingOrders,
   getHighAndLow,
   klinesInit,

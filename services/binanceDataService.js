@@ -1,8 +1,10 @@
-const dataRepository = require('../utils/OrderRepository');
-const { errorLogger } = require('../utils/Logger');
-const fs = require('fs');
-const path = require('path');
+import dataRepository from '../utils/OrderRepository.js';
+import { errorLogger } from '../utils/Logger.js';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = path.join(__dirname, '../data');
 const WHITELIST_FILE = path.join(DATA_DIR, 'whiteList.json');
 const BLACKLIST_FILE = path.join(DATA_DIR, 'blackList.json');
@@ -93,7 +95,7 @@ function setBlacklistSymbols(list) {
   writeJsonArray(BLACKLIST_FILE, Array.isArray(list) ? list : []);
 }
 
-module.exports = {
+export {
   getAllExchangeInfo,
   getTrendOscillationMap,
   getHistoryATRMap,

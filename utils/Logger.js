@@ -1,5 +1,5 @@
-const log4js = require('log4js');
-const { APP_CONFIG } = require('../core/constants');
+import log4js from 'log4js';
+import { APP_CONFIG } from '../core/constants.js';
 
 /**
  * Logger单例模块
@@ -15,25 +15,18 @@ const { APP_CONFIG } = require('../core/constants');
 log4js.configure(APP_CONFIG.LOG_CONFIG);
 
 // 创建logger实例
-const logger = log4js.getLogger();
+export const logger = log4js.getLogger();
 const errorLoggerInstance = log4js.getLogger('error');
 
 /**
  * 错误日志函数 (兼容原有global.errorLogger)
  * @param {...any} msg - 错误消息参数
  */
-const errorLogger = (...msg) => {
+export const errorLogger = (...msg) => {
   errorLoggerInstance.error(...msg);
 };
 
-// 导出单例
-module.exports = {
-  logger,
-  errorLogger,
-
-  // 便捷方法
-  info: (...msg) => logger.info(...msg),
-  warn: (...msg) => logger.warn(...msg),
-  error: (...msg) => logger.error(...msg),
-  debug: (...msg) => logger.debug(...msg)
-};
+export const info = (...msg) => logger.info(...msg);
+export const warn = (...msg) => logger.warn(...msg);
+export const error = (...msg) => logger.error(...msg);
+export const debug = (...msg) => logger.debug(...msg);

@@ -409,7 +409,7 @@ function validateMultiple(value, rules) {
 
 // ==================== 导出所有函数 ====================
 
-module.exports = {
+export {
   // 基础类型验证
   isNumber,
   isString,
