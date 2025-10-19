@@ -60,8 +60,25 @@ export const APP_CONFIG = {
   LOG_CONFIG: {
     appenders: {
       console: { type: 'console' },
-      appFile: { type: 'file', filename: 'logs/app.log' },
-      errorFile: { type: 'file', filename: 'logs/error.log' }
+      // 启用按日滚动并限制保留周期, 防止日志无限增长
+      appFile: {
+        type: 'dateFile',
+        filename: 'logs/app.log',
+        pattern: 'yyyy-MM-dd',
+        keepFileExt: true,
+        daysToKeep: 7,
+        numBackups: 7,
+        compress: true
+      },
+      errorFile: {
+        type: 'dateFile',
+        filename: 'logs/error.log',
+        pattern: 'yyyy-MM-dd',
+        keepFileExt: true,
+        daysToKeep: 7,
+        numBackups: 7,
+        compress: true
+      }
     },
     categories: {
       error: { appenders: ['errorFile', 'console'], level: 'error' },
