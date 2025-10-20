@@ -20,8 +20,9 @@
 
 ### 环境依赖
 
-- Node.js 14及以上版本
-- 相关Node.js库：axios、crypto、binance-futures-connector等
+- Node.js 20 及以上版本 (严格要求 >=20.0.0)
+- ES Modules 支持 (package.json 配置 "type": "module")
+- 相关 Node.js 库：axios、@binance/connector、better-sqlite3、log4js 等
 
 ### 配置文件
 

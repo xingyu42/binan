@@ -10,8 +10,8 @@
 
 | 技术 | 版本 | 用途 |
 |------|------|------|
-| **Node.js** | 14+ | 服务端运行时 |
-| **JavaScript** | ES6+ | 主要编程语言(async/await、箭头函数、模板字符串) |
+| **Node.js** | 20+ | 服务端运行时 |
+| **JavaScript** | ES2020+ (ES Modules) | 主要编程语言(async/await、箭头函数、模板字符串、import/export) |
 | **进程模型** | 单线程事件循环 | 异步I/O + 定时任务调度 |
 
 ---
@@ -65,13 +65,15 @@
   - 企业级日志记录
   - 多输出目标(Console + File)
   - 日志分级(debug/info/warn/error)
-  - 日志轮转支持
+  - 日志按日滚动(dateFile)
+  - 自动压缩旧日志
+  - 保留周期: 7 天
   - 配置:
     ```javascript
     appenders:
       - console: 控制台输出
-      - appFile: logs/app.log (应用日志)
-      - errorFile: logs/error.log (错误日志)
+      - appFile: logs/app.log.yyyy-MM-dd (应用日志,按日滚动)
+      - errorFile: logs/error.log.yyyy-MM-dd (错误日志,按日滚动)
     categories:
       - default: debug → console + appFile
       - error: error → errorFile + console
@@ -240,11 +242,12 @@
 
 ## 版本兼容性
 
-- **Node.js**: 14.x ~ 20.x(推荐 20.x LTS)
+- **Node.js**: 20.x LTS (严格要求 >=20.0.0)
 - **npm**: 8.x+
 - **SQLite**: 3.x
 - **Docker**: 20.10+
 - **币安 API**: Futures V1 + V2
+- **模块系统**: ES Modules (type: "module" in package.json)
 
 ---
 
@@ -289,4 +292,41 @@
 
 ---
 
-*最后更新: 2025-10-16*
+---
+
+## 重要架构变更
+
+### ES 模块标准迁移 (2025-10-19)
+
+项目已全面迁移为 ES 模块标准 (ESM):
+
+**变更内容**:
+- ✅ `package.json` 添加 `"type": "module"`
+- ✅ 所有文件使用 `import/export` 替代 `require/module.exports`
+- ✅ 文件扩展名必须显式指定 (如 `import './foo.js'`)
+- ✅ `__dirname` 和 `__filename` 需通过 `import.meta.url` 获取
+
+**示例代码**:
+```javascript
+// ESM 风格导入
+import express from 'express';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+// 获取 __dirname (ESM 中需手动计算)
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+// ESM 风格导出
+export const logger = log4js.getLogger();
+export function processData() { /* ... */ }
+```
+
+**优势**:
+- 🚀 更好的 Tree-shaking 支持
+- 🚀 标准化的模块系统
+- 🚀 更好的 IDE 支持
+- 🚀 与现代 JavaScript 生态兼容
+
+---
+
+*最后更新: 2025-10-20*

@@ -33,6 +33,7 @@
 │  ┌───────────────────────────────────────────────────┐      │
 │  │ binanceContractService    │ 合约 API 封装         │      │
 │  │ binanceService            │ 现货 API 封装         │      │
+│  │ binanceDataService        │ 数据访问封装          │      │
 │  └───────────────────────────────────────────────────┘      │
 │                                                              │
 ├─────────────────────────────────────────────────────────────┤
@@ -51,7 +52,6 @@
 │  工具与数据适配层 (utils/)                  [基础设施]       │
 │  ┌───────────────────────────────────────────────────┐      │
 │  │ OrderRepository           │ SQLite ORM 单例       │      │
-│  │ dataService               │ 数据适配 (JSON↔SQLite) │      │
 │  │ Logger                    │ Log4js 日志系统       │      │
 │  │ mathUtils                 │ 数学计算工具          │      │
 │  │ formatUtils               │ 格式化工具            │      │
@@ -59,6 +59,18 @@
 │  │ validationUtils           │ 验证工具              │      │
 │  │ precisionUtils            │ 精度处理              │      │
 │  │ retryMonitor              │ 重试监控              │      │
+│  │ util                      │ 工具函数导出汇总       │      │
+│  └───────────────────────────────────────────────────┘      │
+│                                                              │
+├─────────────────────────────────────────────────────────────┤
+│                                                              │
+│  核心配置层 (core/)                         [常量管理]       │
+│  ┌───────────────────────────────────────────────────┐      │
+│  │ constants.js              │ 系统级常量配置         │      │
+│  │  ├─ API_CONFIG            │ API 域名、认证、重试   │      │
+│  │  ├─ APP_CONFIG            │ 端口、环境、日志       │      │
+│  │  ├─ TRADING_CONFIG        │ 交易参数配置          │      │
+│  │  └─ TIMEZONE_CONFIG       │ 时区配置              │      │
 │  └───────────────────────────────────────────────────┘      │
 │                                                              │
 ├─────────────────────────────────────────────────────────────┤
@@ -187,10 +199,24 @@ getPrice(symbol)            // 获取当前价格
 getUserData()               // 获取用户收入记录
 ```
 
+#### 3.3 binanceDataService (数据访问封装)
+
+```javascript
+// 核心方法
+getAllExchangeInfo()        // 获取缓存的交易对基础信息
+getTrendOscillationMap()    // 获取缓存的趋势震荡指标
+getHistoryATRMap()          // 获取缓存的历史 ATR 指标
+getWhiteList()              // 获取白名单
+getBlackList()              // 获取黑名单
+saveWhiteList(list)         // 保存白名单
+saveBlackList(list)         // 保存黑名单
+```
+
 **设计原则**:
 - ✅ 单一职责: 仅封装 API 调用
 - ✅ 统一错误处理: 抛出标准化异常
 - ✅ 参数验证: 调用前验证参数合法性
+- ✅ 数据源抽象: 隔离数据存储细节 (SQLite/JSON)
 
 ---
 
@@ -310,29 +336,7 @@ class OrderRepository {
 - ✅ **自动事务**: 写入操作自动包裹事务
 - ✅ **懒初始化**: 首次调用时才创建实例
 
-#### 5.2 dataService (数据适配层)
-
-**职责**: 兼容旧代码的 JSON 文件读写
-
-```javascript
-// 向后兼容: 旧代码调用 readDataFromFile('ATR')
-// dataService 自动路由到 SQLite 或 JSON
-function readDataFromFile(filename) {
-  const sqliteKeys = ['ATR', 'equity', 'volatility', 'exchangeInfo'];
-
-  if (sqliteKeys.includes(filename)) {
-    return OrderRepository.getInstance().get(filename);
-  } else {
-    return JSON.parse(fs.readFileSync(`data/${filename}.json`));
-  }
-}
-```
-
-**设计理念**:
-- 🎯 **渐进式迁移**: SQLite 迁移不破坏旧代码
-- 🎯 **透明适配**: 调用方无需修改代码
-
-#### 5.3 Logger (日志系统)
+#### 5.2 Logger (日志系统)
 
 ```javascript
 const log4js = require('log4js');
@@ -515,6 +519,7 @@ WAL 模式 (Write-Ahead Logging):
 │ Services 层      │ ← API 封装 + 参数验证
 │ - binanceContract│
 │ - binanceService │
+│ - binanceData    │
 └────────┬─────────┘
          │
          │ 业务数据
@@ -526,22 +531,20 @@ WAL 模式 (Write-Ahead Logging):
 │ - priceTracking  │
 └────────┬─────────┘
          │
-         ├──────────────┬──────────────┐
-         ↓              ↓              ↓
- ┌──────────────┐ ┌──────────────┐ ┌──────────────┐
- │ SQLite       │ │ JSON 文件    │ │ 日志系统     │
- │ (app_data.db)│ │ (blackList)  │ │ (logs/)      │
- └──────────────┘ └──────────────┘ └──────────────┘
-     ↑                  ↑
-     │                  │
- OrderRepository    fs.readFile
- (单例 ORM)         (直接文件读取)
-     ↑                  ↑
-     └──────────┬───────┘
-                │
-         dataService (适配层)
-                ↑
-          旧代码兼容层
+         ├──────────────┬──────────────┬──────────────┐
+         ↓              ↓              ↓              ↓
+ ┌──────────────┐ ┌──────────────┐ ┌──────────────┐ ┌──────────────┐
+ │ SQLite       │ │ JSON 文件    │ │ 日志系统     │ │ 核心常量     │
+ │ (app_data.db)│ │ (blackList)  │ │ (logs/)      │ │ (constants)  │
+ └──────────────┘ └──────────────┘ └──────────────┘ └──────────────┘
+     ↑                  ↑                                   ↑
+     │                  │                                   │
+ OrderRepository    fs.readFile                       core/constants.js
+ (单例 ORM)         (binanceDataService)              (API/APP/TRADING)
+     ↑                  ↑                                   ↑
+     └──────────────────┴───────────────────────────────────┘
+                        │
+                  所有模块统一引用
 ```
 
 ---
@@ -607,37 +610,68 @@ WAL 模式 (Write-Ahead Logging):
 
 ---
 
-### 5. 为什么用数据适配层 (dataService)?
+### 5. 为什么用 binanceDataService 封装数据访问?
 
-**决策**: 创建 dataService 兼容层
+**决策**: 创建 binanceDataService 统一数据访问
 
 **理由**:
-- ✅ **渐进式迁移**: SQLite 迁移不破坏旧代码
-- ✅ **向后兼容**: 旧代码无需修改
-- ✅ **透明适配**: 自动路由到 SQLite 或 JSON
-- ✅ **减少风险**: 避免大规模重构
+- ✅ **单一职责**: 隔离数据存储细节
+- ✅ **统一接口**: 所有数据访问通过统一方法
+- ✅ **易于测试**: Mock 数据访问层即可
+- ✅ **灵活切换**: 底层存储变更不影响上层
 
-**设计模式**: Adapter Pattern (适配器模式)
+**设计模式**: Repository Pattern (仓库模式)
 
 ---
 
 ## 代码质量与改进
 
-### 最近重构 (commit 6fde5f8)
+### 最近重构
 
-**标题**: ♻️ refactor: 用 SQLite 重构数据存储与日志体系
+#### 1. ES 模块标准迁移 (commit 33a6f69 - 2025-10-19)
+
+**标题**: ♻️ refactor: 全面迁移为 ES 模块标准
+
+**改进点**:
+1. ✅ **模块系统**: CommonJS → ES Modules (import/export)
+2. ✅ **package.json**: 添加 `"type": "module"`
+3. ✅ **文件导入**: 必须显式指定 `.js` 扩展名
+4. ✅ **__dirname 处理**: 使用 `import.meta.url` 获取
+
+**效果**:
+- 🚀 **标准化**: 符合现代 JavaScript 标准
+- 🚀 **Tree-shaking**: 更好的打包优化
+- 🚀 **IDE 支持**: 更好的类型推断和自动补全
+
+#### 2. 数据访问层重构 (commit 6e47cc2 - 2025-10-18)
+
+**标题**: ♻️ refactor: 重构数据访问层,移除旧的 dataService
 
 **改进点**:
 1. ✅ **数据存储**: JSON 文件 → SQLite (原子事务 + WAL 模式)
-2. ✅ **日志系统**: 自定义日志 → Log4js (标准化 + 分级)
+2. ✅ **日志系统**: 自定义日志 → Log4js (标准化 + 分级 + 按日滚动)
 3. ✅ **单例模式**: OrderRepository 全局共享数据库连接
-4. ✅ **数据适配**: dataService 保持向后兼容
+4. ✅ **数据访问**: 创建 binanceDataService 统一数据访问
 5. ✅ **错误处理**: 统一错误捕获和日志记录
 
 **效果**:
 - 🚀 **性能提升**: 高频数据写入速度提升 3x
 - 🚀 **数据一致性**: 杜绝 JSON 文件并发写入冲突
 - 🚀 **代码质量**: 从 "So-so" 提升至 "Good taste"
+
+#### 3. 日志按日滚动优化 (commit 6b08344 - 2025-10-20)
+
+**标题**: ♻️ refactor: 更新日志配置为按日滚动
+
+**改进点**:
+1. ✅ **日志滚动**: 按日期分割日志文件
+2. ✅ **自动清理**: 保留最近 7 天日志
+3. ✅ **自动压缩**: 旧日志自动压缩节省空间
+
+**效果**:
+- 🚀 **空间节省**: 防止日志无限增长
+- 🚀 **易于查找**: 按日期快速定位问题
+- 🚀 **生产可用**: 满足长期运行需求
 
 ---
 
@@ -762,4 +796,4 @@ return preciseQuantity;
 
 ---
 
-*最后更新: 2025-10-16*
+*最后更新: 2025-10-20*

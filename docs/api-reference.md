@@ -845,4 +845,23 @@ console.log('未实现盈亏:', position.unRealizedProfit);
 
 ---
 
-*最后更新: 2025-10-16*
+---
+
+## 代码示例说明
+
+**重要**: 本项目已迁移为 ES 模块标准 (ESM),所有代码示例使用 `import/export` 语法:
+
+```javascript
+// ESM 导入
+import { binanceContractService } from '../services/binanceContractService.js';
+import { logger } from '../utils/Logger.js';
+
+// ESM 导出
+export async function someFunction() { /* ... */ }
+```
+
+如需在旧版 CommonJS 项目中使用,请自行转换为 `require/module.exports` 语法。
+
+---
+
+*最后更新: 2025-10-20*
