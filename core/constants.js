@@ -25,14 +25,14 @@ export const API_CONFIG = {
   SOCKS_PROXY: process.env.API_SOCKS || 'socks5://127.0.0.1:7890',
 
   // 请求头配置
-  USER_AGENT: 'Mozilla/5.0 (compatible; BinanceAPI/1.0)',
+  // USER_AGENT: 'Mozilla/5.0 (compatible; BinanceAPI/1.0)',
 
   // 超时配置 (毫秒)
-  TIMEOUT: {
-    DEFAULT: 10000,
-    LONG: 30000,
-    SHORT: 5000
-  },
+  // TIMEOUT: {
+  //   DEFAULT: 10000,
+  //   LONG: 30000,
+  //   SHORT: 5000
+  // },
 
   // 重试配置
   RETRY: {
@@ -93,18 +93,18 @@ export const TRADING_CONFIG = {
   KLINE_INTERVAL: '1d',
 
   // ATR 相关
-  ATR: {
-    DEFAULT_PERIOD: 14,
-    MIN_PERIOD: 5,
-    MAX_PERIOD: 50
-  },
+  // ATR: {
+  //   DEFAULT_PERIOD: 14,
+  //   MIN_PERIOD: 5,
+  //   MAX_PERIOD: 50
+  // },
 
   // 精度配置
-  PRECISION: {
-    DEFAULT_PRICE_TICK_SIZE: '0.0001',
-    DEFAULT_QUANTITY_STEP_SIZE: '0.001',
-    MAX_DECIMAL_PLACES: 8
-  },
+  // PRECISION: {
+  //   DEFAULT_PRICE_TICK_SIZE: '0.0001',
+  //   DEFAULT_QUANTITY_STEP_SIZE: '0.001',
+  //   MAX_DECIMAL_PLACES: 8
+  // },
 
   // 仓位管理
   POSITION: {
@@ -114,67 +114,67 @@ export const TRADING_CONFIG = {
   },
 
   // 订单配置
-  ORDER: {
-    MAX_ORDERS_PER_SYMBOL: 10,
-    MIN_ORDER_SIZE: 0.001, // BTC
-    ORDER_TYPES: {
-      MARKET: 'MARKET',
-      LIMIT: 'LIMIT',
-      STOP_MARKET: 'STOP_MARKET',
-      STOP_LIMIT: 'STOP_LIMIT',
-      TAKE_PROFIT_MARKET: 'TAKE_PROFIT_MARKET'
-    },
-    TIME_IN_FORCE: {
-      GTC: 'GTC', // Good Till Cancel
-      IOC: 'IOC', // Immediate Or Cancel
-      FOK: 'FOK'  // Fill Or Kill
-    }
-  }
+  // ORDER: {
+  //   MAX_ORDERS_PER_SYMBOL: 10,
+  //   MIN_ORDER_SIZE: 0.001, // BTC
+  //   ORDER_TYPES: {
+  //     MARKET: 'MARKET',
+  //     LIMIT: 'LIMIT',
+  //     STOP_MARKET: 'STOP_MARKET',
+  //     STOP_LIMIT: 'STOP_LIMIT',
+  //     TAKE_PROFIT_MARKET: 'TAKE_PROFIT_MARKET'
+  //   },
+  //   TIME_IN_FORCE: {
+  //     GTC: 'GTC', // Good Till Cancel
+  //     IOC: 'IOC', // Immediate Or Cancel
+  //     FOK: 'FOK'  // Fill Or Kill
+  //   }
+  // }
 };
 
 // ==================== 监控配置 ====================
-export const MONITOR_CONFIG = {
-  // 仓位监控
-  POSITION_MONITOR: {
-    CHECK_INTERVAL: '0/30 * * * * *', // 30秒检查一次
-    ENABLE_HIGH_LOW_TRACKING: true,   // 启用新高新低跟踪
-    ENABLE_ORIGINAL_STOP_LOGIC: true, // 启用原有止盈逻辑
-    ATR_MULTIPLIER: 2,               // ATR倍数
-    MAX_DRAWDOWN_PERCENT: 10         // 最大回撤百分比
-  },
+// export const MONITOR_CONFIG = {
+//   // 仓位监控
+//   POSITION_MONITOR: {
+//     CHECK_INTERVAL: '0/30 * * * * *', // 30秒检查一次
+//     ENABLE_HIGH_LOW_TRACKING: true,   // 启用新高新低跟踪
+//     ENABLE_ORIGINAL_STOP_LOGIC: true, // 启用原有止盈逻辑
+//     ATR_MULTIPLIER: 2,               // ATR倍数
+//     MAX_DRAWDOWN_PERCENT: 10         // 最大回撤百分比
+//   },
 
-  // 价格监控
-  PRICE_MONITOR: {
-    UPDATE_INTERVAL: 5000,           // 5秒更新一次价格
-    ALERT_THRESHOLD: 0.05,           // 5%价格变动告警
-    HISTORY_LENGTH: 100              // 保留历史价格数量
-  },
+//   // 价格监控
+//   PRICE_MONITOR: {
+//     UPDATE_INTERVAL: 5000,           // 5秒更新一次价格
+//     ALERT_THRESHOLD: 0.05,           // 5%价格变动告警
+//     HISTORY_LENGTH: 100              // 保留历史价格数量
+//   },
 
-  // 风险监控
-  RISK_MONITOR: {
-    CHECK_INTERVAL: '0 */5 * * * *', // 5分钟检查一次
-    MAX_DAILY_LOSS: 1000,            // 最大日亏损 USDT
-    MAX_POSITION_RATIO: 0.8,         // 最大仓位占比
-    FORCE_CLOSE_THRESHOLD: 0.9       // 强制平仓阈值
-  },
+//   // 风险监控
+//   RISK_MONITOR: {
+//     CHECK_INTERVAL: '0 */5 * * * *', // 5分钟检查一次
+//     MAX_DAILY_LOSS: 1000,            // 最大日亏损 USDT
+//     MAX_POSITION_RATIO: 0.8,         // 最大仓位占比
+//     FORCE_CLOSE_THRESHOLD: 0.9       // 强制平仓阈值
+//   },
 
-  // 性能监控
-  PERFORMANCE_MONITOR: {
-    CHECK_INTERVAL: '0 0 * * * *',   // 每小时检查一次
-    MEMORY_THRESHOLD: 1000,          // MB
-    CPU_THRESHOLD: 80                // 百分比
-  }
-};
+//   // 性能监控
+//   PERFORMANCE_MONITOR: {
+//     CHECK_INTERVAL: '0 0 * * * *',   // 每小时检查一次
+//     MEMORY_THRESHOLD: 1000,          // MB
+//     CPU_THRESHOLD: 80                // 百分比
+//   }
+// };
 
 // ==================== 策略配置 ====================
 export const STRATEGY_CONFIG = {
   // ATR 止损策略
-  ATR_STOP_LOSS: {
-    MULTIPLIER: 2.0,
-    MIN_MULTIPLIER: 1.0,
-    MAX_MULTIPLIER: 5.0,
-    ADJUSTMENT_STEP: 0.1
-  },
+  // ATR_STOP_LOSS: {
+  //   MULTIPLIER: 2.0,
+  //   MIN_MULTIPLIER: 1.0,
+  //   MAX_MULTIPLIER: 5.0,
+  //   ADJUSTMENT_STEP: 0.1
+  // },
 
   // 跟踪止损策略
   TRAILING_STOP: {
@@ -200,34 +200,34 @@ export const STRATEGY_CONFIG = {
 };
 
 // ==================== 数据配置 ====================
-export const DATA_CONFIG = {
+// export const DATA_CONFIG = {
   // 文件路径
-  FILE_PATHS: {
-    ATR_DATA: './data/ATR.json',
-    EQUITY_DATA: './data/equity.json',
-    POSITION_DATA: './data/data.json',
-    VOLATILITY_DATA: './data/volatility.json',
-    TREND_OSCILLATION_DATA: './data/trendOscillation.json',
-    BLACK_LIST: './data/blackList.json',
-    WHITE_LIST: './data/whiteList.json'
-  },
+  // FILE_PATHS: {
+  //   ATR_DATA: './data/ATR.json',
+  //   EQUITY_DATA: './data/equity.json',
+  //   POSITION_DATA: './data/data.json',
+  //   VOLATILITY_DATA: './data/volatility.json',
+  //   TREND_OSCILLATION_DATA: './data/trendOscillation.json',
+  //   BLACK_LIST: './data/blackList.json',
+  //   WHITE_LIST: './data/whiteList.json'
+  // },
 
-  // 缓存配置
-  CACHE: {
-    EXCHANGE_INFO_TTL: 3600000,    // 1小时
-    PRICE_DATA_TTL: 60000,         // 1分钟
-    ACCOUNT_DATA_TTL: 30000,       // 30秒
-    MAX_CACHE_SIZE: 1000           // 最大缓存项数
-  },
+  // // 缓存配置
+  // CACHE: {
+  //   EXCHANGE_INFO_TTL: 3600000,    // 1小时
+  //   PRICE_DATA_TTL: 60000,         // 1分钟
+  //   ACCOUNT_DATA_TTL: 30000,       // 30秒
+  //   MAX_CACHE_SIZE: 1000           // 最大缓存项数
+  // },
 
   // 数据更新频率
-  UPDATE_FREQUENCY: {
-    ATR_UPDATE: '0 0 */4 * * *',         // 4小时更新ATR
-    VOLATILITY_UPDATE: '0 */30 * * * *',  // 30分钟更新波动率
-    EQUITY_UPDATE: '0 */5 * * * *',       // 5分钟更新权益
-    EXCHANGE_INFO_UPDATE: '0 0 */6 * * *' // 6小时更新交易对信息
-  }
-};
+  // UPDATE_FREQUENCY: {
+  //   ATR_UPDATE: '0 0 */4 * * *',         // 4小时更新ATR
+  //   VOLATILITY_UPDATE: '0 */30 * * * *',  // 30分钟更新波动率
+  //   EQUITY_UPDATE: '0 */5 * * * *',       // 5分钟更新权益
+  //   EXCHANGE_INFO_UPDATE: '0 0 */6 * * *' // 6小时更新交易对信息
+  // }
+// };
 
 // ==================== 系统限制 ====================
 export const SYSTEM_LIMITS = {
@@ -241,18 +241,18 @@ export const SYSTEM_LIMITS = {
   },
 
   // 内存限制
-  MEMORY_LIMITS: {
-    MAX_KLINE_HISTORY: 1000,      // 最大K线历史数量
-    MAX_TRADE_HISTORY: 500,       // 最大交易历史数量
-    MAX_LOG_ENTRIES: 10000        // 最大日志条目数
-  },
+  // MEMORY_LIMITS: {
+  //   MAX_KLINE_HISTORY: 1000,      // 最大K线历史数量
+  //   MAX_TRADE_HISTORY: 500,       // 最大交易历史数量
+  //   MAX_LOG_ENTRIES: 10000        // 最大日志条目数
+  // },
 
   // 时间限制
-  TIME_LIMITS: {
-    MAX_EXECUTION_TIME: 30000,    // 最大执行时间 30秒
-    CONNECTION_TIMEOUT: 10000,    // 连接超时 10秒
-    HEARTBEAT_INTERVAL: 30000     // 心跳间隔 30秒
-  }
+  // TIME_LIMITS: {
+  //   MAX_EXECUTION_TIME: 30000,    // 最大执行时间 30秒
+  //   CONNECTION_TIMEOUT: 10000,    // 连接超时 10秒
+  //   HEARTBEAT_INTERVAL: 30000     // 心跳间隔 30秒
+  // }
 };
 
 // ==================== 错误代码 ====================
@@ -268,34 +268,34 @@ export const ERROR_CODES = {
   },
 
   // 系统错误
-  SYSTEM_ERROR: {
-    NETWORK_ERROR: 'NETWORK_ERROR',
-    DATA_ERROR: 'DATA_ERROR',
-    CALCULATION_ERROR: 'CALCULATION_ERROR',
-    VALIDATION_ERROR: 'VALIDATION_ERROR'
-  }
+  // SYSTEM_ERROR: {
+  //   NETWORK_ERROR: 'NETWORK_ERROR',
+  //   DATA_ERROR: 'DATA_ERROR',
+  //   CALCULATION_ERROR: 'CALCULATION_ERROR',
+  //   VALIDATION_ERROR: 'VALIDATION_ERROR'
+  // }
 };
 
 // ==================== 消息模板 ====================
-export const MESSAGE_TEMPLATES = {
+// export const MESSAGE_TEMPLATES = {
   // 日志消息
-  LOG_MESSAGES: {
-    SYSTEM_START: '系统启动成功',
-    SYSTEM_STOP: '系统停止运行',
-    POSITION_OPENED: '{symbol} 开仓成功: {side} {quantity} @ {price}',
-    POSITION_CLOSED: '{symbol} 平仓成功: {side} {quantity} @ {price}',
-    STOP_LOSS_TRIGGERED: '{symbol} 止损触发: {price}',
-    ERROR_OCCURRED: '系统错误: {error}'
-  },
+  // LOG_MESSAGES: {
+  //   SYSTEM_START: '系统启动成功',
+  //   SYSTEM_STOP: '系统停止运行',
+  //   POSITION_OPENED: '{symbol} 开仓成功: {side} {quantity} @ {price}',
+  //   POSITION_CLOSED: '{symbol} 平仓成功: {side} {quantity} @ {price}',
+  //   STOP_LOSS_TRIGGERED: '{symbol} 止损触发: {price}',
+  //   ERROR_OCCURRED: '系统错误: {error}'
+  // },
 
   // 告警消息
-  ALERT_MESSAGES: {
-    HIGH_RISK: '高风险告警: 当前风险水平 {risk}%',
-    POSITION_SIZE_WARNING: '仓位过大告警: {symbol} 仓位占比 {ratio}%',
-    DRAWDOWN_WARNING: '回撤告警: 当前回撤 {drawdown}%',
-    API_ERROR: 'API异常告警: {error}'
-  }
-};
+  // ALERT_MESSAGES: {
+  //   HIGH_RISK: '高风险告警: 当前风险水平 {risk}%',
+  //   POSITION_SIZE_WARNING: '仓位过大告警: {symbol} 仓位占比 {ratio}%',
+  //   DRAWDOWN_WARNING: '回撤告警: 当前回撤 {drawdown}%',
+  //   API_ERROR: 'API异常告警: {error}'
+  // }
+// };
 
 // ==================== 时区配置 ====================
 export const TIMEZONE_CONFIG = {

@@ -1,4 +1,4 @@
-// 价格跟踪控制器
+// 价格跟踪控制器 //TODO: 不符合当前策略废弃
 import {
   getAccountData,
   getKlines,
@@ -15,16 +15,10 @@ import { logger, errorLogger } from '../utils/Logger.js';
 import WebSocket from 'ws';
 import { SocksProxyAgent } from 'socks-proxy-agent';
 import schedule from 'node-schedule';
-import fs from 'node:fs';
 
 const agent = new SocksProxyAgent(API_CONFIG.SOCKS_PROXY);
 
 
-// 获取账户权益
-async function getEquity() {
-  let res = await getAccountData()
-  return res.totalMarginBalance // 保证金总余额
-}
 
 // 获取账户头寸
 async function getAccountPosition() {
@@ -36,50 +30,7 @@ async function getAccountPosition() {
   }) // 保证金总余额
 }
 
-
-// 生成一个webSocket跟踪流
-async function getWebSocket() {
-  let data = await getListenKey();
-  let listenKey = data.listenKey;
-  WebSocket.client
-  return new WebSocket(`wss://fstream.binance.com/ws/${listenKey}`, { agent });
-}
-
-
-// 仓位跟踪控制器
-
-// 开始跟踪
-async function startTracking() {
-  let accountPosition = await getAccountPosition()
-  let socket = await getWebSocket()
-  let request = {
-    "method": "SUBSCRIBE",
-    "params":
-      [
-        "btcusdt@aggTrade"
-      ],
-    "id": 1
-  }
-  socket.on('open', () => {
-    console.log('WebSocket connected');
-    socket.send(JSON.stringify(request))
-  });
-
-  socket.on('message', (data) => {
-    // 处理收到的消息
-    console.log(JSON.parse(data));
-  })
-  socket.on('error', (err) => {
-    errorLogger(err);
-  });
-}
-
-
-// 存储品种历史最高价/最低价
-let symbolHighLowCache = {}
-
-
-// 获取ATR数据(使用SQLite)
+// 获取ATR数据
 function getATRData() {
   try {
     return dataRepository.get('ATR') || {};
@@ -90,6 +41,31 @@ function getATRData() {
 }
 
 // 获取品种最近价格和K线数据
+const SYMBOL_HIGH_LOW_KEY_PREFIX = 'priceTracker:';
+
+function getSymbolHighLow(symbol) {
+  try {
+    const data = dataRepository.get(`${SYMBOL_HIGH_LOW_KEY_PREFIX}${symbol}`);
+    if (!data) return null;
+    const high = Number(data.high);
+    const low = Number(data.low);
+    if (Number.isNaN(high) || Number.isNaN(low)) return null;
+    return { high, low };
+  } catch (error) {
+    errorLogger(`Failed to get high/low for ${symbol}:`, error);
+    return null;
+  }
+}
+
+function updateSymbolHighLow(symbol, high, low) {
+  try {
+    dataRepository.set(`${SYMBOL_HIGH_LOW_KEY_PREFIX}${symbol}`, { high, low });
+  } catch (error) {
+    errorLogger(`Failed to update high/low for ${symbol}:`, error);
+  }
+}
+
+// 获取品种市场价K线数据
 async function getSymbolKlineData(symbol, limit = 50) {
   try {
     const res = await getKlines(symbol, limit)
@@ -107,91 +83,44 @@ async function getCurrentATR(klines) {
   return getATRCompute(klines.slice(-14), 14)
 }
 
-// 监控做多品种新高并调整止损
-async function monitorLongPosition(position) {
+// 监控持仓极值并调整止损
+async function monitorPosition(position, direction) {
   const symbol = position.symbol
   const currentPrice = Number(position.markPrice)
 
-  // 获取K线数据
   const klines = await getSymbolKlineData(symbol)
   if (!klines) return
 
-  // 获取ATR
   const atrData = getATRData()
   const currentATR = atrData[symbol] || await getCurrentATR(klines)
   if (!currentATR) return
 
-  // 初始化或更新历史最高价
-  if (!symbolHighLowCache[symbol]) {
-    symbolHighLowCache[symbol] = { high: currentPrice, low: currentPrice }
+  let symbolHighLow = getSymbolHighLow(symbol)
+  if (!symbolHighLow) {
+    symbolHighLow = { high: currentPrice, low: currentPrice }
+    updateSymbolHighLow(symbol, symbolHighLow.high, symbolHighLow.low)
   }
 
-  const isNewHigh = currentPrice > symbolHighLowCache[symbol].high
+  const extremeValue = direction > 0 ? symbolHighLow.high : symbolHighLow.low
+  const isNewExtreme = direction > 0 ? currentPrice > extremeValue : currentPrice < extremeValue
 
-  if (isNewHigh) {
-    symbolHighLowCache[symbol].high = currentPrice
-    logger.info(`${symbol} 创新高: ${currentPrice}`)
+  if (!isNewExtreme) return
 
-    // 计算新的止损价格：从新高向下N个ATR
-    const rawStopPrice = currentPrice - (MONITOR_CONFIG.POSITION_MONITOR.ATR_MULTIPLIER * currentATR)
+  const updatedHigh = direction > 0 ? currentPrice : symbolHighLow.high
+  const updatedLow = direction > 0 ? symbolHighLow.low : currentPrice
+  updateSymbolHighLow(symbol, updatedHigh, updatedLow)
+  logger.info(`${symbol} ${direction > 0 ? '创新高' : '创新低'}: ${currentPrice}`)
 
-    // 使用精度工具格式化止损价格
-    const newStopPrice = await safeFormatPrice(rawStopPrice, symbol)
+  const rawStopPrice = currentPrice - (direction * MONITOR_CONFIG.POSITION_MONITOR.ATR_MULTIPLIER * currentATR)
+  const newStopPrice = await safeFormatPrice(rawStopPrice, symbol)
+  const currentStopPrice = await getStopPrice(symbol)
+  const shouldUpdate = direction > 0 ? newStopPrice > currentStopPrice : newStopPrice < currentStopPrice
 
-    // 获取当前设置的止损价格
-    const currentStopPrice = await getStopPrice(symbol)
-
-    // 如果新止损价格大于当前止损价格，则更新
-    if (newStopPrice > currentStopPrice) {
-      await setNewStopPrice(symbol, newStopPrice, 1)
-      logger.info(`${symbol} 做多止损调整: ${currentStopPrice} -> ${newStopPrice}`)
-    }
-  }
-}
-
-// 监控做空品种新低并调整止损
-async function monitorShortPosition(position) {
-  const symbol = position.symbol
-  const currentPrice = Number(position.markPrice)
-
-  // 获取K线数据
-  const klines = await getSymbolKlineData(symbol)
-  if (!klines) return
-
-  // 获取ATR
-  const atrData = getATRData()
-  const currentATR = atrData[symbol] || await getCurrentATR(klines)
-  if (!currentATR) return
-
-  // 初始化或更新历史最低价
-  if (!symbolHighLowCache[symbol]) {
-    symbolHighLowCache[symbol] = { high: currentPrice, low: currentPrice }
-  }
-
-  const isNewLow = currentPrice < symbolHighLowCache[symbol].low
-
-  if (isNewLow) {
-    symbolHighLowCache[symbol].low = currentPrice
-    logger.info(`${symbol} 创新低: ${currentPrice}`)
-
-    // 计算新的止损价格：从新低向上N个ATR
-    const rawStopPrice = currentPrice + (MONITOR_CONFIG.POSITION_MONITOR.ATR_MULTIPLIER * currentATR)
-
-    // 使用精度工具格式化止损价格
-    const newStopPrice = await safeFormatPrice(rawStopPrice, symbol)
-
-    // 获取当前设置的止损价格
-    const currentStopPrice = await getStopPrice(symbol)
-
-    // 如果新止损价格小于当前止损价格，则更新
-    if (newStopPrice < currentStopPrice) {
-      await setNewStopPrice(symbol, newStopPrice, -1)
-      logger.info(`${symbol} 做空止损调整: ${currentStopPrice} -> ${newStopPrice}`)
-    }
+  if (shouldUpdate) {
+    await setNewStopPrice(symbol, newStopPrice, direction)
+    logger.info(`${symbol} ${direction > 0 ? '做多止损调整' : '做空止损调整'}: ${currentStopPrice} -> ${newStopPrice}`)
   }
 }
-
-// 增强的仓位监控系统
 function positionMonitor() {
   logger.info('开始增强仓位监控系统')
   logger.info(`监控配置: 检查间隔=${MONITOR_CONFIG.POSITION_MONITOR.CHECK_INTERVAL}, ATR倍数=${MONITOR_CONFIG.POSITION_MONITOR.ATR_MULTIPLIER}`)
@@ -205,15 +134,11 @@ function positionMonitor() {
       logger.info(`监控 ${positions.length} 个持仓品种`)
 
       for (const position of positions) {
-        const positionSide = Number(position.positionAmt) > 0 ? 'LONG' : 'SHORT'
+        const direction = Number(position.positionAmt) > 0 ? 1 : -1
 
         // 新高新低跟踪止损逻辑
         if (MONITOR_CONFIG.POSITION_MONITOR.ENABLE_HIGH_LOW_TRACKING) {
-          if (positionSide === 'LONG') {
-            await monitorLongPosition(position)
-          } else {
-            await monitorShortPosition(position)
-          }
+          await monitorPosition(position, direction)
         }
 
         // 保持原有的止盈逻辑
@@ -221,7 +146,7 @@ function positionMonitor() {
           let unrealizedProfit = Number(position.unrealizedProfit)
           let isolatedWallet = Number(position.isolatedWallet)
           if (unrealizedProfit > isolatedWallet) {
-            stopPrice(position)
+            await stopPrice(position)
           }
         }
       }
@@ -230,8 +155,6 @@ function positionMonitor() {
     }
   })
 }
-
-
 
 // 获取合约价格
 async function getPrice(symbol) {
@@ -251,29 +174,32 @@ async function getStopPrice(symbol) {
 }
 
 
-function stopPrice(position) {
+/**
+ * 根据盈利倍数动态调整止损价：
+ * - profitMultiplier 表示盈利是独立仓位保证金的倍数
+ * - acceptableLossMultiplier 控制允许回吐的保证金倍数（盈利越高可承受的亏损越大）
+ * - priceDecline = price * (acceptableLossMultiplier / profitMultiplier) 计算可接受的价格回撤
+ */
+function getNewStopPrice(isolatedWallet, unrealizedProfit, price, direction) {
+  const profitMultiplier = Math.floor(unrealizedProfit / isolatedWallet)
+  const acceptableLossMultiplier = (profitMultiplier - 2) * 0.1 + 1.8
+  const priceDecline = price * (acceptableLossMultiplier / profitMultiplier)
+  return direction > 0 ? price - priceDecline : price + priceDecline
+}
+async function stopPrice(position) {
   // 新的止盈规则
   let unrealizedProfit = Number(position.unrealizedProfit) // 未实现盈亏
   let isolatedWallet = Number(position.isolatedWallet) // 保证金
   let direction = Number(position.direction)  // 方向
-  function getNewStopPrice(isolatedWallet, unrealizedProfit, price, direction) {
-    // 计算要承担多少亏损
-    // 如果盈利2个保证金承担1.8个保证金的亏损。
-    // 每向上增长1一个保证金多承担0.1个保证金的亏损。
-    let num = Math.floor(unrealizedProfit / isolatedWallet)
-    let s = (num - 2) * 0.1 + 1.8 // 需要承担亏损多个保证金的倍数
-    let f = price * (s / num) // 跌幅
-    return direction > 0 ? price - f : price + f
-  }
+
   if (unrealizedProfit / 2 > isolatedWallet) {
-    // let price
-    let stopPriceIng = getStopPrice(position.symbol)
-    let price = getPrice(position.symbol)
+    let stopPriceIng = await getStopPrice(position.symbol)
+    let price = await getPrice(position.symbol)
     let newStopPrice = getNewStopPrice(isolatedWallet, unrealizedProfit, price, direction)
     let isStart = direction > 0 ? newStopPrice > stopPriceIng : newStopPrice < stopPriceIng
     // 如果做空，止损价格大于历史止损价格，如果做多，止损价格小于历史止损价格，
     if (isStart) {
-      setNewStopPrice(position.symbol, newStopPrice, direction)
+      await setNewStopPrice(position.symbol, newStopPrice, direction)
     }
   }
 }
@@ -285,15 +211,7 @@ async function setNewStopPrice(symbol, stopPrice, direction) {
 }
 
 export default async function priceTrackingController() {
-  // startTracking()
   positionMonitor()
 }
 
 export { positionMonitor };
-
-
-
-
-
-
-
