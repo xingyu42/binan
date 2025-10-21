@@ -20,7 +20,6 @@ import {
 import dataRepository from '../utils/OrderRepository.js';
 import { logger, errorLogger } from '../utils/Logger.js';
 import { getTickSize, formatPriceByTickSize } from '../utils/precisionUtils.js';
-import * as utils from '../utils/util.js';
 import { clamp, calculateMinQuantity, truncateDecimal, getPrecision } from '../utils/mathUtils.js';
 import { waitForCondition } from '../utils/timeUtils.js';
 import {
@@ -437,3 +436,6 @@ export default async function timingController() {
       });
   })
 };
+
+// 导出供测试使用
+export { order, initData, setTakeProfit, deleteAllInvalidOrders };
