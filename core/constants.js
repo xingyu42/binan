@@ -133,38 +133,38 @@ export const TRADING_CONFIG = {
 };
 
 // ==================== 监控配置 ====================
-// export const MONITOR_CONFIG = {
-//   // 仓位监控
-//   POSITION_MONITOR: {
-//     CHECK_INTERVAL: '0/30 * * * * *', // 30秒检查一次
-//     ENABLE_HIGH_LOW_TRACKING: true,   // 启用新高新低跟踪
-//     ENABLE_ORIGINAL_STOP_LOGIC: true, // 启用原有止盈逻辑
-//     ATR_MULTIPLIER: 2,               // ATR倍数
-//     MAX_DRAWDOWN_PERCENT: 10         // 最大回撤百分比
-//   },
+export const MONITOR_CONFIG = {
+  // 仓位监控
+  POSITION_MONITOR: {
+    CHECK_INTERVAL: '0/30 * * * * *', // 30秒检查一次
+    ENABLE_HIGH_LOW_TRACKING: true,   // 启用新高新低跟踪
+    ENABLE_ORIGINAL_STOP_LOGIC: true, // 启用原有止盈逻辑
+    ATR_MULTIPLIER: 2,               // ATR倍数
+    MAX_DRAWDOWN_PERCENT: 10         // 最大回撤百分比
+  },
 
-//   // 价格监控
-//   PRICE_MONITOR: {
-//     UPDATE_INTERVAL: 5000,           // 5秒更新一次价格
-//     ALERT_THRESHOLD: 0.05,           // 5%价格变动告警
-//     HISTORY_LENGTH: 100              // 保留历史价格数量
-//   },
+  // 价格监控
+  PRICE_MONITOR: {
+    UPDATE_INTERVAL: 5000,           // 5秒更新一次价格
+    ALERT_THRESHOLD: 0.05,           // 5%价格变动告警
+    HISTORY_LENGTH: 100              // 保留历史价格数量
+  },
 
-//   // 风险监控
-//   RISK_MONITOR: {
-//     CHECK_INTERVAL: '0 */5 * * * *', // 5分钟检查一次
-//     MAX_DAILY_LOSS: 1000,            // 最大日亏损 USDT
-//     MAX_POSITION_RATIO: 0.8,         // 最大仓位占比
-//     FORCE_CLOSE_THRESHOLD: 0.9       // 强制平仓阈值
-//   },
+  // 风险监控
+  RISK_MONITOR: {
+    CHECK_INTERVAL: '0 */5 * * * *', // 5分钟检查一次
+    MAX_DAILY_LOSS: 1000,            // 最大日亏损 USDT
+    MAX_POSITION_RATIO: 0.8,         // 最大仓位占比
+    FORCE_CLOSE_THRESHOLD: 0.9       // 强制平仓阈值
+  },
 
-//   // 性能监控
-//   PERFORMANCE_MONITOR: {
-//     CHECK_INTERVAL: '0 0 * * * *',   // 每小时检查一次
-//     MEMORY_THRESHOLD: 1000,          // MB
-//     CPU_THRESHOLD: 80                // 百分比
-//   }
-// };
+  // 性能监控
+  PERFORMANCE_MONITOR: {
+    CHECK_INTERVAL: '0 0 * * * *',   // 每小时检查一次
+    MEMORY_THRESHOLD: 1000,          // MB
+    CPU_THRESHOLD: 80                // 百分比
+  }
+};
 
 // ==================== 策略配置 ====================
 export const STRATEGY_CONFIG = {
@@ -237,7 +237,7 @@ export const SYSTEM_LIMITS = {
     REQUESTS_PER_SECOND: 20,
     ORDER_RATE_LIMIT: 100,        // 每10秒
     WEIGHT_LIMIT: 1200,           // 每分钟权重限制
-    KLINE_REQUEST_INTERVAL: 150   // K线请求间隔(毫秒)
+    KLINE_REQUEST_INTERVAL: 10   // K线请求间隔(毫秒)
   },
 
   // 内存限制
