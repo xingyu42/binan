@@ -76,6 +76,21 @@ function clamp(value, min, max) {
   return Math.min(Math.max(value, min), max);
 }
 
+/**
+ * 计算最小下单数量(消除if-else分支)
+ * @param {number} minQty - 币安规定的最小数量
+ * @param {number} stepSize - 数量步进值
+ * @param {number} closePrice - 当前价格
+ * @param {number} notional - 最小名义价值
+ * @returns {number} 最小数量
+ */
+function calculateMinQuantity(minQty, stepSize, closePrice, notional) {
+  // 基于名义价值的最小数量
+  const notionalBasedMin = Math.ceil(notional / (stepSize * closePrice)) * stepSize;
+  // 返回两者中的较大值 (替代if-else,这就是Good Taste)
+  return Math.max(minQty, notionalBasedMin);
+}
+
 // ==================== 统计计算函数 ====================
 
 /**
@@ -379,7 +394,8 @@ export {
   round6,
   isInRange,
   clamp,
-  
+  calculateMinQuantity,
+
   // 统计计算函数
   SMA,
   calculateSMA,

@@ -21,6 +21,8 @@ import dataRepository from '../utils/OrderRepository.js';
 import { logger, errorLogger } from '../utils/Logger.js';
 import { getTickSize, formatPriceByTickSize } from '../utils/precisionUtils.js';
 import * as utils from '../utils/util.js';
+import { clamp, calculateMinQuantity, truncateDecimal, getPrecision } from '../utils/mathUtils.js';
+import { waitForCondition } from '../utils/timeUtils.js';
 import {
   getAllExchangeInfo,
   getWhitelistSymbols,
@@ -28,34 +30,6 @@ import {
   setWhitelistSymbols,
   setBlacklistSymbols
 } from '../services/binanceDataService.js';
-
-/**
- * 轮询等待直到条件满足
- * @param {Function} checkFn - 返回布尔值的检查函数
- * @param {Object} options - 配置项
- * @returns {Promise<boolean>} - 成功返回 true,超时返回 false
- */
-async function waitForCondition(checkFn, options = {}) {
-  const { maxAttempts = 10, interval = 1000 } = options;
-
-  for (let i = 0; i < maxAttempts; i++) {
-    try {
-      if (await checkFn()) {
-        logger.info(`条件满足,尝试次数: ${i + 1}`);
-        return true;
-      }
-    } catch (error) {
-      logger.warn(`检查过程出错: ${error.message}`);
-    }
-
-    if (i < maxAttempts - 1) {
-      await new Promise(resolve => setTimeout(resolve, interval));
-    }
-  }
-
-  logger.error(`轮询超时(${maxAttempts}次尝试),条件未满足`);
-  return false;
-}
 
 // 更新所有交易对的ATR和波动率
 async function updateAllATR(callback) {
@@ -191,36 +165,6 @@ async function order() {
     }
     return resultArray;
   }
-  function getNum(num, yNum) {
-    let z = utils.getPrecision(yNum)
-    return utils.truncateDecimal(num, z)
-  }
-
-  /**
-   * 计算最小下单数量(消除if-else分支)
-   * @param {number} minQty - 币安规定的最小数量
-   * @param {number} stepSize - 数量步进值
-   * @param {number} closePrice - 当前价格
-   * @param {number} notional - 最小名义价值
-   * @returns {number} 最小数量
-   */
-  function calculateMinQuantity(minQty, stepSize, closePrice, notional) {
-    // 基于名义价值的最小数量
-    const notionalBasedMin = Math.ceil(notional / (stepSize * closePrice)) * stepSize;
-    // 返回两者中的较大值 (替代if-else,这就是Good Taste)
-    return Math.max(minQty, notionalBasedMin);
-  }
-
-  /**
-   * 将数值限制在范围内(消除两个独立的if分支)
-   * @param {number} value - 原始值
-   * @param {number} min - 最小值
-   * @param {number} max - 最大值
-   * @returns {number} 限制后的值
-   */
-  function clamp(value, min, max) {
-    return Math.max(min, Math.min(max, value));
-  }
 
   /**
    * 获取下单数量
@@ -230,7 +174,7 @@ async function order() {
    */
   function getQuantity(item, num) {
     // 1. 计算原始数量
-    const rawQuantity = getNum(parseFloat(item.quantity) * num, parseFloat(item.quantity));
+    const rawQuantity = truncateDecimal(parseFloat(item.quantity) * num, getPrecision(parseFloat(item.quantity)));
 
     // 2. 提取参数(提前解析,避免重复计算)
     const minQty = parseFloat(item.minQty);
@@ -255,7 +199,7 @@ async function order() {
     const clampedQuantity = clamp(rawQuantity, minQuantity, maxQty);
 
     // 6. 格式化到步进精度并记录
-    const finalQuantity = getNum(clampedQuantity, parseFloat(item.quantity));
+    const finalQuantity = truncateDecimal(clampedQuantity, getPrecision(parseFloat(item.quantity)));
     logger.info(item.symbol, '下单处理的数量', finalQuantity);
 
     return finalQuantity;

@@ -3,6 +3,8 @@
  * 提供时间格式化、时区转换、时间计算等功能
  */
 
+import { logger } from './Logger.js';
+
 // ==================== 时间格式化 ====================
 
 /**
@@ -265,6 +267,37 @@ function parseTimeString(timeString, format = 'YYYY-MM-DD HH:mm:ss') {
   }
 }
 
+// ==================== 异步相关函数 ====================
+
+/**
+ * 轮询等待直到条件满足
+ * @param {Function} checkFn - 返回布尔值的检查函数
+ * @param {Object} options - 配置项
+ * @returns {Promise<boolean>} - 成功返回 true,超时返回 false
+ */
+async function waitForCondition(checkFn, options = {}) {
+  const { maxAttempts = 10, interval = 1000 } = options;
+
+  for (let i = 0; i < maxAttempts; i++) {
+    try {
+      if (await checkFn()) {
+        logger.info(`条件满足,尝试次数: ${i + 1}`);
+        return true;
+      }
+    } catch (error) {
+      logger.warn(`检查过程出错: ${error.message}`);
+    }
+
+    if (i < maxAttempts - 1) {
+      await new Promise(resolve => setTimeout(resolve, interval));
+    }
+  }
+
+  logger.error(`轮询超时(${maxAttempts}次尝试),条件未满足`);
+  return false;
+}
+
+
 // ==================== 导出所有函数 ====================
 
 export {
@@ -296,5 +329,8 @@ export {
   isToday,
   getHour,
   isInTimeRange,
-  parseTimeString
+  parseTimeString,
+
+  // 异步相关
+  waitForCondition
 };
