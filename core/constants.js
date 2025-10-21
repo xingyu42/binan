@@ -107,11 +107,11 @@ export const TRADING_CONFIG = {
   // },
 
   // 仓位管理
-  POSITION: {
-    MIN_POSITION_VALUE: 10, // USDT
-    MAX_LEVERAGE: 20,
-    DEFAULT_LEVERAGE: 1
-  },
+  // POSITION: {
+  //   MIN_POSITION_VALUE: 10, // USDT
+  //   MAX_LEVERAGE: 20,
+  //   DEFAULT_LEVERAGE: 1
+  // },
 
   // 订单配置
   // ORDER: {
@@ -177,25 +177,25 @@ export const STRATEGY_CONFIG = {
   // },
 
   // 跟踪止损策略
-  TRAILING_STOP: {
-    INITIAL_DISTANCE: 0.02,    // 2%
-    MIN_DISTANCE: 0.005,       // 0.5%
-    MAX_DISTANCE: 0.1,         // 10%
-    STEP_SIZE: 0.001          // 0.1%
-  },
+  // TRAILING_STOP: {
+  //   INITIAL_DISTANCE: 0.02,    // 2%
+  //   MIN_DISTANCE: 0.005,       // 0.5%
+  //   MAX_DISTANCE: 0.1,         // 10%
+  //   STEP_SIZE: 0.001          // 0.1%
+  // },
 
   // 新高新低策略
   HIGH_LOW_STRATEGY: {
-    LOOKBACK_PERIOD: 20,       // 回看周期
-    BREAK_THRESHOLD: 0.001,    // 突破阈值
-    CONFIRMATION_CANDLES: 2    // 确认K线数量
+    LOOKBACK_PERIOD: 20       // 回看周期
+    // BREAK_THRESHOLD: 0.001,    // 突破阈值
+    // CONFIRMATION_CANDLES: 2    // 确认K线数量
   },
 
   // 仓位管理策略
   POSITION_SIZING: {
-    RISK_PER_TRADE: 0.02,      // 每笔交易风险 2%
-    MAX_RISK_PER_DAY: 0.05,    // 每日最大风险 5%
-    KELLY_MULTIPLIER: 0.25     // 凯利公式倍数
+    RISK_PER_TRADE: 0.02      // 每笔交易风险 2%
+    // MAX_RISK_PER_DAY: 0.05,    // 每日最大风险 5%
+    // KELLY_MULTIPLIER: 0.25     // 凯利公式倍数
   }
 };
 
@@ -256,25 +256,25 @@ export const SYSTEM_LIMITS = {
 };
 
 // ==================== 错误代码 ====================
-export const ERROR_CODES = {
-  // API 错误
-  API_ERROR: {
-    INVALID_SIGNATURE: -1022,
-    TIMESTAMP_ERROR: -1021,
-    RATE_LIMIT: -1003,
-    IP_BANNED: -1002,
-    UNKNOWN_ORDER: -2013,
-    INSUFFICIENT_BALANCE: -2019
-  },
+// export const ERROR_CODES = {
+//   // API 错误
+//   API_ERROR: {
+//     INVALID_SIGNATURE: -1022,
+//     TIMESTAMP_ERROR: -1021,
+//     RATE_LIMIT: -1003,
+//     IP_BANNED: -1002,
+//     UNKNOWN_ORDER: -2013,
+//     INSUFFICIENT_BALANCE: -2019
+//   },
 
-  // 系统错误
-  // SYSTEM_ERROR: {
-  //   NETWORK_ERROR: 'NETWORK_ERROR',
-  //   DATA_ERROR: 'DATA_ERROR',
-  //   CALCULATION_ERROR: 'CALCULATION_ERROR',
-  //   VALIDATION_ERROR: 'VALIDATION_ERROR'
-  // }
-};
+//   // 系统错误
+//   // SYSTEM_ERROR: {
+//   //   NETWORK_ERROR: 'NETWORK_ERROR',
+//   //   DATA_ERROR: 'DATA_ERROR',
+//   //   CALCULATION_ERROR: 'CALCULATION_ERROR',
+//   //   VALIDATION_ERROR: 'VALIDATION_ERROR'
+//   // }
+// };
 
 // ==================== 消息模板 ====================
 // export const MESSAGE_TEMPLATES = {
