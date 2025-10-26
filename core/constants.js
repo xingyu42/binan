@@ -191,6 +191,12 @@ export const STRATEGY_CONFIG = {
     // CONFIRMATION_CANDLES: 2    // 确认K线数量
   },
 
+  // 交易方向开关
+  TRADING_DIRECTION: {
+    ENABLE_LONG: true,        // 是否启用做多
+    ENABLE_SHORT: false       // 是否启用做空 (当前关闭)
+  },
+
   // 仓位管理策略
   POSITION_SIZING: {
     RISK_PER_TRADE: 0.02      // 每笔交易风险 2%

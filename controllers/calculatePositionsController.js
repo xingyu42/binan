@@ -220,7 +220,18 @@ function getAllKlines() {
 }
 
 // 信号
+let configLoggedOnce = false  // 添加静态标记，确保只打印一次
+
 function signal(symbolData, profitableSymbol) {
+  // 只打印一次配置状态
+  if (!configLoggedOnce) {
+    logger.info('交易方向配置:', {
+      做多: STRATEGY_CONFIG.TRADING_DIRECTION.ENABLE_LONG ? '启用' : '禁用',
+      做空: STRATEGY_CONFIG.TRADING_DIRECTION.ENABLE_SHORT ? '启用' : '禁用'
+    })
+    configLoggedOnce = true
+  }
+
   // k线收盘时，收盘价突破最高点，并且是阳线
   // k线收盘时，收盘价突破最低点，并且是阴线
   // 循环遍历，如果是在40根K线内是第一次突破，那么信号返回真 或者 标的物已经拥有浮盈
@@ -233,6 +244,15 @@ function signal(symbolData, profitableSymbol) {
   let ls = ng(symbolData) // 当前信号是要做多还是做空还是没有信号
   if (ls.LONG || ls.SHORT) {
     let name = ls.LONG ? 'LONG' : 'SHORT'
+
+    // ✅ 添加配置检查
+    if (name === 'LONG' && !STRATEGY_CONFIG.TRADING_DIRECTION.ENABLE_LONG) {
+      return false
+    }
+    if (name === 'SHORT' && !STRATEGY_CONFIG.TRADING_DIRECTION.ENABLE_SHORT) {
+      return false
+    }
+
     let fname = ls.LONG ? 'SHORT' : 'LONG'
     function klinesData(klines) {
       let HAL = getHighAndLow(klines.slice(0, klines.length - 2), symbolData.symbol) // 高点低点
