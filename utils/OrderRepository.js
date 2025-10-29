@@ -35,6 +35,8 @@ class OrderRepository {
 
       // 启用WAL模式: 提升并发读写性能
       this.db.pragma('journal_mode = WAL');
+      // 配置自动checkpoint频率，避免WAL文件无限增长（每1000页约4MB）
+      this.db.pragma('wal_autocheckpoint = 1000');
 
       // 创建表结构
       this.db.exec(`
